@@ -58,20 +58,25 @@ void setup(void)
 
 void runForward() {
   auto data = M5.Imu.getImuData();
-  int8_t throttle = 50;
-  int8_t steering = (int8_t)(-data.accel.x * 25);
+  int8_t throttle = 70;
+  int8_t steering = (int8_t)(-data.accel.x * 40);
   toiocore->drive(throttle, steering);
   showStatus("RUNNING", "");
 }
 
 void runBackward() {
-  // TODO: Implement backward
+  auto data = M5.Imu.getImuData();
+  int8_t throttle = -50;
+  int8_t steering = (int8_t)(-data.accel.x * 40);
+  toiocore->drive(throttle, steering);
   showStatus("RUNNING", "Backward");
 }
 
 void loop(void)
 {
   M5.update();
+  buttonBlue.update();
+  buttonRed.update();
   toio.loop();
 
   switch (state) {
@@ -104,9 +109,9 @@ void loop(void)
         showStatus("ERROR", "Disconnected");
         break;
       }
-      if (M5.Touch.getCount() == 0 && !buttonBlue.isPressed() && !buttonRed.isPressed()) {
+      if (!buttonBlue.isPressed() && !buttonRed.isPressed()) {
         toiocore->drive(0, 0);
-        showStatus("RUNNING", "Touch to drive");
+        showStatus("RUNNING", "Push Button to drive");
         break;
       }
 
