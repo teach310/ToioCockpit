@@ -56,6 +56,19 @@ void setup(void)
   showStatus("SCANNING", "Searching toio...");
 }
 
+void runForward() {
+  auto data = M5.Imu.getImuData();
+  int8_t throttle = 50;
+  int8_t steering = (int8_t)(-data.accel.x * 25);
+  toiocore->drive(throttle, steering);
+  showStatus("RUNNING", "");
+}
+
+void runBackward() {
+  // TODO: Implement backward
+  showStatus("RUNNING", "Backward");
+}
+
 void loop(void)
 {
   M5.update();
@@ -91,17 +104,19 @@ void loop(void)
         showStatus("ERROR", "Disconnected");
         break;
       }
-      if (M5.Touch.getCount() == 0) {
+      if (M5.Touch.getCount() == 0 && !buttonBlue.isPressed() && !buttonRed.isPressed()) {
         toiocore->drive(0, 0);
         showStatus("RUNNING", "Touch to drive");
         break;
       }
-      auto imu_update = M5.Imu.update();
-      auto data = M5.Imu.getImuData();
-      int8_t throttle = 50;
-      int8_t steering = (int8_t)(-data.accel.x * 25);
-      toiocore->drive(throttle, steering);
-      showStatus("RUNNING", "");
+
+      M5.Imu.update();
+      if (buttonBlue.isPressed()) {
+        runForward();
+      } else if (buttonRed.isPressed()) {
+        runBackward();
+      }
+      
       break;
     }
     case AppState::ERROR:
