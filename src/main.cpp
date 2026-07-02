@@ -22,7 +22,26 @@ enum class AppState {
 };
 AppState state = AppState::INIT;
 
+int8_t currentThrottle = 0;
 std::vector<ToioCore*> toiocore_list;
+
+// 引数で渡した一定単位ごとに近づける
+void updateCurrentThrottle(int8_t targetThrottle, int8_t step = 1) {
+  if (currentThrottle == targetThrottle) {
+    return;
+  }
+  if (currentThrottle < targetThrottle) {
+    currentThrottle += step;
+    if (currentThrottle > targetThrottle) {
+      currentThrottle = targetThrottle;
+    }
+  } else {
+    currentThrottle -= step;
+    if (currentThrottle < targetThrottle) {
+      currentThrottle = targetThrottle;
+    }
+  }
+}
 
 void showStatus(const char* status, const char* detail = nullptr) {
   canvas.fillScreen(TFT_BLACK);
@@ -58,17 +77,17 @@ void setup(void)
 
 void runForward() {
   auto data = M5.Imu.getImuData();
-  int8_t throttle = 70;
+  updateCurrentThrottle(70, 30);
   int8_t steering = (int8_t)(-data.accel.x * 40);
-  toiocore->drive(throttle, steering);
+  toiocore->drive(currentThrottle, steering);
   showStatus("RUNNING", "");
 }
 
 void runBackward() {
   auto data = M5.Imu.getImuData();
-  int8_t throttle = -50;
+  updateCurrentThrottle(-50, 30);
   int8_t steering = (int8_t)(-data.accel.x * 40);
-  toiocore->drive(throttle, steering);
+  toiocore->drive(currentThrottle, steering);
   showStatus("RUNNING", "Backward");
 }
 
@@ -110,7 +129,8 @@ void loop(void)
         break;
       }
       if (!buttonBlue.isPressed() && !buttonRed.isPressed()) {
-        toiocore->drive(0, 0);
+        updateCurrentThrottle(0, 10);
+        toiocore->drive(currentThrottle, 0);
         showStatus("RUNNING", "Push Button to drive");
         break;
       }
