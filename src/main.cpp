@@ -1,8 +1,13 @@
 #include <M5Unified.h>
 #include <Toio.h>
+#include "GpioButton.hpp"
 
 static auto &dsp = M5.Display;
 LGFX_Sprite canvas(&dsp);
+
+GpioButton buttonBlue(8);
+GpioButton buttonRed(9);
+
 Toio toio;
 ToioCore* toiocore = nullptr;
 
@@ -41,6 +46,9 @@ void setup(void)
 {
   auto cfg = M5.config();
   M5.begin(cfg);
+  buttonBlue.begin();
+  buttonRed.begin();
+  
   dsp.setTextSize(2);
   canvas.createSprite(dsp.width(), 40);
   canvas.setTextSize(2);
