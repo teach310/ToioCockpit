@@ -1,12 +1,14 @@
 #include <M5Unified.h>
 #include <Toio.h>
 #include "GpioButton.hpp"
+#include "Joystick.hpp"
 
 static auto &dsp = M5.Display;
 LGFX_Sprite canvas(&dsp);
 
 GpioButton buttonBlue(8);
 GpioButton buttonRed(9);
+Joystick joystick;
 
 Toio toio;
 ToioCore* toiocore = nullptr;
@@ -67,7 +69,13 @@ void setup(void)
   M5.begin(cfg);
   buttonBlue.begin();
   buttonRed.begin();
-  
+
+  Joystick::Config joyCfg;
+  joyCfg.sda = M5.getPin(m5::pin_name_t::port_a_sda);
+  joyCfg.scl = M5.getPin(m5::pin_name_t::port_a_scl);
+  joyCfg.yCalibration = {200, 32390, 65380}; // 実測値のキャリブレーション値
+  joystick.begin(joyCfg);
+
   dsp.setTextSize(2);
   canvas.createSprite(dsp.width(), 40);
   canvas.setTextSize(2);
@@ -91,11 +99,19 @@ void runBackward() {
   showStatus("RUNNING", "Backward");
 }
 
+// 左右のモーターを逆回転させてその場で回転する
+void spinInPlace() {
+  currentThrottle = 0;
+  toiocore->controlMotor(true, 100, false, 100);
+  showStatus("RUNNING", "Spin");
+}
+
 void loop(void)
 {
   M5.update();
   buttonBlue.update();
   buttonRed.update();
+  joystick.update();
   toio.loop();
 
   switch (state) {
@@ -126,6 +142,10 @@ void loop(void)
       if (!toiocore || !toiocore->isConnected()) {
         state = AppState::ERROR;
         showStatus("ERROR", "Disconnected");
+        break;
+      }
+      if (joystick.isPressed()) {
+        spinInPlace();
         break;
       }
       if (!buttonBlue.isPressed() && !buttonRed.isPressed()) {
