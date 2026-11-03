@@ -6,8 +6,11 @@
 static auto &dsp = M5.Display;
 LGFX_Sprite canvas(&dsp);
 
-GpioButton buttonBlue(8);
-GpioButton buttonRed(9);
+constexpr uint8_t BUTTON_BLUE_PIN = 8; // Port B
+constexpr uint8_t BUTTON_RED_PIN = 9;  // Port B
+
+GpioButton buttonBlue(BUTTON_BLUE_PIN);
+GpioButton buttonRed(BUTTON_RED_PIN);
 Joystick joystick;
 bool joystickAvailable = false; // 起動時にJoyStickが応答したか
 
@@ -16,22 +19,29 @@ ToioCore* toiocore = nullptr;
 
 // State machine
 enum class AppState {
-  INIT,
   SCANNING,
   CONNECTING,
-  CONNECTED,
   RUNNING,
   ERROR
 };
-AppState state = AppState::INIT;
+AppState state = AppState::SCANNING;
 
 constexpr uint32_t CONTROL_INTERVAL_MS = 50;  // 入力読み取りとモーター制御の周期
 constexpr uint32_t DISPLAY_INTERVAL_MS = 500; // 表示内容が同じときの再描画周期
 constexpr uint32_t RETRY_INTERVAL_MS = 5000;  // ERRORから自動で再試行するまでの時間
 constexpr uint8_t MAX_AUTO_RETRIES = 3;       // 放置時の電池消費を抑えるため、自動再試行は回数を限る
+constexpr uint8_t SCAN_DURATION_SEC = 3;
+constexpr uint32_t JOYSTICK_WARNING_MS = 2000; // JoyStickが見つからないときの警告の表示時間
+
+// 走行のパラメータ。スロットルの変化量は CONTROL_INTERVAL_MS ごとの値
+constexpr int8_t FORWARD_THROTTLE = 70;
+constexpr int8_t BACKWARD_THROTTLE = -50;
+constexpr int8_t ACCEL_STEP = 30;    // ボタンを押している間の加速
+constexpr int8_t DECEL_STEP = 10;    // ボタンを離したときの減速
+constexpr float STEERING_GAIN = 40;  // 本体の傾き(accel.x)をステアリングに変換する倍率
+constexpr uint8_t SPIN_SPEED = 100;  // その場で回転するときのモーターの速さ
 
 int8_t currentThrottle = 0;
-std::vector<ToioCore*> toiocore_list;
 uint32_t lastControlMs = 0;
 
 // ERRORになった時刻と、再試行で戻る先の状態
@@ -59,12 +69,12 @@ void sendSpin() {
   if (lastMotorMode == MotorMode::SPIN) {
     return;
   }
-  toiocore->controlMotor(true, 100, false, 100);
+  toiocore->controlMotor(true, SPIN_SPEED, false, SPIN_SPEED);
   lastMotorMode = MotorMode::SPIN;
 }
 
 // 引数で渡した一定単位ごとに近づける
-void updateCurrentThrottle(int8_t targetThrottle, int8_t step = 1) {
+void updateCurrentThrottle(int8_t targetThrottle, int8_t step) {
   if (currentThrottle == targetThrottle) {
     return;
   }
@@ -134,27 +144,21 @@ void setup(void)
   // JoyStickがなくてもボタンで走れるので、知らせるだけで先に進む
   if (!joystickAvailable) {
     showStatus("WARNING", "Joystick not found");
-    delay(2000);
+    delay(JOYSTICK_WARNING_MS);
   }
 
   state = AppState::SCANNING;
   showStatus("SCANNING", "Searching toio...");
 }
 
-void runForward() {
+// targetThrottle に向けて加速しながら、本体の傾きで曲がる
+void driveToward(int8_t targetThrottle, const char* detail) {
+  M5.Imu.update();
   auto data = M5.Imu.getImuData();
-  updateCurrentThrottle(70, 30);
-  int8_t steering = (int8_t)(-data.accel.x * 40);
+  updateCurrentThrottle(targetThrottle, ACCEL_STEP);
+  int8_t steering = (int8_t)(-data.accel.x * STEERING_GAIN);
   sendDrive(currentThrottle, steering);
-  showStatus("RUNNING", "");
-}
-
-void runBackward() {
-  auto data = M5.Imu.getImuData();
-  updateCurrentThrottle(-50, 30);
-  int8_t steering = (int8_t)(-data.accel.x * 40);
-  sendDrive(currentThrottle, steering);
-  showStatus("RUNNING", "Backward");
+  showStatus("RUNNING", detail);
 }
 
 // 左右のモーターを逆回転させてその場で回転する
@@ -173,11 +177,13 @@ void enterError(const char* detail, AppState nextState) {
   showStatus("ERROR", autoRetryCount < MAX_AUTO_RETRIES ? detail : "Push Button to retry");
 }
 
-// RUNNINGに入る前に、前回の接続で残ったモーター制御の状態を初期化する
-void resetDriveState() {
+// 接続できたらRUNNINGに入る。前回の接続で残ったモーター制御の状態は初期化する
+void startRunning() {
+  autoRetryCount = 0;
   currentThrottle = 0;
   lastMotorMode = MotorMode::NONE;
   lastControlMs = 0;
+  state = AppState::RUNNING;
 }
 
 // JoyStickがないときはI2Cを読まない（押されていない扱いのまま）
@@ -195,28 +201,23 @@ void loop(void)
   toio.loop();
 
   switch (state) {
-    case AppState::SCANNING:
-      toiocore_list = toio.scan(3); // 3 seconds scan
-      if (!toiocore_list.empty()) {
-        toiocore = toiocore_list.at(0);
+    case AppState::SCANNING: {
+      std::vector<ToioCore*> found = toio.scan(SCAN_DURATION_SEC);
+      if (!found.empty()) {
+        toiocore = found.at(0);
         state = AppState::CONNECTING;
         showStatus("CONNECTING", "Connecting to toio...");
       } else {
         enterError("No toio found. Retry...", AppState::SCANNING);
       }
       break;
+    }
     case AppState::CONNECTING:
       if (toiocore && toiocore->connect()) {
-        state = AppState::CONNECTED;
-        showStatus("CONNECTED", "toio connected");
+        startRunning();
       } else {
         enterError("Connect failed. Retry...", AppState::SCANNING);
       }
-      break;
-    case AppState::CONNECTED:
-      autoRetryCount = 0;
-      resetDriveState();
-      state = AppState::RUNNING;
       break;
     case AppState::RUNNING: {
       if (!toiocore || !toiocore->isConnected()) {
@@ -237,22 +238,15 @@ void loop(void)
 
       if (joystick.isPressed()) {
         spinInPlace();
-        break;
-      }
-      if (!buttonBlue.isPressed() && !buttonRed.isPressed()) {
-        updateCurrentThrottle(0, 10);
+      } else if (buttonBlue.isPressed()) {
+        driveToward(FORWARD_THROTTLE, "Forward");
+      } else if (buttonRed.isPressed()) {
+        driveToward(BACKWARD_THROTTLE, "Backward");
+      } else {
+        updateCurrentThrottle(0, DECEL_STEP);
         sendDrive(currentThrottle, 0);
         showStatus("RUNNING", "Push Button to drive");
-        break;
       }
-
-      M5.Imu.update();
-      if (buttonBlue.isPressed()) {
-        runForward();
-      } else if (buttonRed.isPressed()) {
-        runBackward();
-      }
-      
       break;
     }
     case AppState::ERROR: {
@@ -273,9 +267,5 @@ void loop(void)
       }
       break;
     }
-    case AppState::INIT:
-    default:
-      showStatus("INIT", "");
-      break;
   }
 }
