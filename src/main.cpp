@@ -81,6 +81,10 @@ uint8_t CRASH_SOUND[] = {
 };
 constexpr uint32_t CRASH_SOUND_MS = 140;       // 衝突音の長さ。この間はバック音で上書きしない
 constexpr uint32_t CRASH_COOLDOWN_MS = 3000;   // 衝突音を鳴らしすぎないよう、次に鳴らせるまでの間隔
+// 衝突検出のしきい値(1～10)。大きいほど強くぶつからないと検出しない。toioの初期値7では走行中の衝突をほぼ拾わないので下げる
+constexpr uint8_t CRASH_THRESHOLD = 3;
+
+constexpr uint32_t JOYSTICK_LED_COLOR = 0x00C8FF; // 押し込んでいる間のJoyStickのライトの色
 
 // 最後に鳴らした音。同じ音を送り直さないために使う
 enum class SoundMode { NONE, HORN, BACKUP, CRASH };
@@ -88,6 +92,7 @@ SoundMode lastSoundMode = SoundMode::NONE;
 
 // toioのモーション検出で衝突が来たら立てる。鳴らすかどうかは制御周期の中で決める
 bool crashDetected = false;
+bool joystickLedOn = false;
 uint32_t lastCrashMs = 0;
 
 void updateSound(SoundMode mode) {
@@ -176,6 +181,9 @@ void setup(void)
   joyCfg.scl = M5.getPin(m5::pin_name_t::port_a_scl);
   joyCfg.yCalibration = {200, 32390, 65380}; // 実測値のキャリブレーション値
   joystickAvailable = joystick.begin(joyCfg);
+  if (joystickAvailable) {
+    joystick.setRgbColor(0);
+  }
 
   dashboard.begin();
   updateCoreBattery();
@@ -210,12 +218,22 @@ bool isHornButtonTouched() {
   return touch.isPressed() && dashboard.isHornHit(touch.x, touch.y);
 }
 
+// JoyStickを押し込んでいる間はライトを付ける。押し込みが読めているかを目で確かめられるようにする
+void updateJoystickLed(bool on) {
+  if (!joystickAvailable || on == joystickLedOn) {
+    return;
+  }
+  joystick.setRgbColor(on ? JOYSTICK_LED_COLOR : 0);
+  joystickLedOn = on;
+}
+
 // ERRORにして、ボタンを押すか一定時間たったら nextState からやり直す
 // 自動再試行を使い切ったあとは、ボタンを押したときだけやり直す
 void enterError(const char* detail, AppState nextState) {
   state = AppState::ERROR;
   retryState = nextState;
   errorStartMs = millis();
+  updateJoystickLed(false);
   dashboard.setRunning(false);
   dashboard.setGear(Dashboard::Gear::P);
   dashboard.setSpeed(0);
@@ -233,7 +251,8 @@ void startRunning() {
   lastSoundMode = SoundMode::NONE;
   lastControlMs = 0;
   crashDetected = false;
-  // 接続ごとに登録し直す。コールバックは toio.loop() の中で呼ばれる
+  toiocore->setClashThreshold(CRASH_THRESHOLD);
+  // 接続ごとに登録し直す。コールバックは loop() の toiocore->_loop() の中で呼ばれる
   toiocore->onMotion([](ToioCoreMotionData motion) {
     if (motion.clash) {
       crashDetected = true;
@@ -262,7 +281,11 @@ void updateInputs() {
 void loop(void)
 {
   M5.update();
-  toio.loop();
+  // toio.loop() は最初のスキャンで見つけたオブジェクトしか回さない。スキャンし直すと
+  // toiocore は別のオブジェクトになり、衝突や電池の通知が届かなくなるので直接回す
+  if (toiocore) {
+    toiocore->_loop();
+  }
   updateCoreBattery();
 
   switch (state) {
@@ -302,6 +325,7 @@ void loop(void)
       updateInputs();
 
       bool spinning = joystick.isPressed();
+      updateJoystickLed(spinning);
       if (spinning) {
         spinInPlace();
       } else if (buttonBlue.isPressed()) {
