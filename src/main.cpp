@@ -26,10 +26,17 @@ AppState state = AppState::INIT;
 
 constexpr uint32_t CONTROL_INTERVAL_MS = 50;  // 入力読み取りとモーター制御の周期
 constexpr uint32_t DISPLAY_INTERVAL_MS = 500; // 表示内容が同じときの再描画周期
+constexpr uint32_t RETRY_INTERVAL_MS = 5000;  // ERRORから自動で再試行するまでの時間
+constexpr uint8_t MAX_AUTO_RETRIES = 3;       // 放置時の電池消費を抑えるため、自動再試行は回数を限る
 
 int8_t currentThrottle = 0;
 std::vector<ToioCore*> toiocore_list;
 uint32_t lastControlMs = 0;
+
+// ERRORになった時刻と、再試行で戻る先の状態
+uint32_t errorStartMs = 0;
+AppState retryState = AppState::SCANNING;
+uint8_t autoRetryCount = 0;
 
 // 最後に送ったモーター命令。同じ命令を送り直さないために使う
 enum class MotorMode { NONE, DRIVE, SPIN };
@@ -149,6 +156,22 @@ void spinInPlace() {
   showStatus("RUNNING", "Spin");
 }
 
+// ERRORにして、ボタンを押すか一定時間たったら nextState からやり直す
+// 自動再試行を使い切ったあとは、ボタンを押したときだけやり直す
+void enterError(const char* detail, AppState nextState) {
+  state = AppState::ERROR;
+  retryState = nextState;
+  errorStartMs = millis();
+  showStatus("ERROR", autoRetryCount < MAX_AUTO_RETRIES ? detail : "Push Button to retry");
+}
+
+// RUNNINGに入る前に、前回の接続で残ったモーター制御の状態を初期化する
+void resetDriveState() {
+  currentThrottle = 0;
+  lastMotorMode = MotorMode::NONE;
+  lastControlMs = 0;
+}
+
 void loop(void)
 {
   M5.update();
@@ -162,8 +185,7 @@ void loop(void)
         state = AppState::CONNECTING;
         showStatus("CONNECTING", "Connecting to toio...");
       } else {
-        state = AppState::ERROR;
-        showStatus("ERROR", "No toio found");
+        enterError("No toio found. Retry...", AppState::SCANNING);
       }
       break;
     case AppState::CONNECTING:
@@ -171,17 +193,18 @@ void loop(void)
         state = AppState::CONNECTED;
         showStatus("CONNECTED", "toio connected");
       } else {
-        state = AppState::ERROR;
-        showStatus("ERROR", "Connect failed");
+        enterError("Connect failed. Retry...", AppState::SCANNING);
       }
       break;
     case AppState::CONNECTED:
+      autoRetryCount = 0;
+      resetDriveState();
       state = AppState::RUNNING;
       break;
     case AppState::RUNNING: {
       if (!toiocore || !toiocore->isConnected()) {
-        state = AppState::ERROR;
-        showStatus("ERROR", "Disconnected");
+        // 同じtoioにつなぎ直す。失敗したらスキャンからやり直す
+        enterError("Disconnected. Retry...", AppState::CONNECTING);
         break;
       }
 
@@ -217,9 +240,26 @@ void loop(void)
       
       break;
     }
-    case AppState::ERROR:
-      // Do nothing, just show error
+    case AppState::ERROR: {
+      buttonBlue.update();
+      buttonRed.update();
+      joystick.update();
+      bool pressed = buttonBlue.wasPressed() || buttonRed.wasPressed() || joystick.wasPressed();
+      bool canAutoRetry = autoRetryCount < MAX_AUTO_RETRIES;
+      if (!pressed && !(canAutoRetry && millis() - errorStartMs >= RETRY_INTERVAL_MS)) {
+        delay(CONTROL_INTERVAL_MS);
+        break;
+      }
+      // 手動でやり直したときは、自動再試行の回数も元に戻す
+      autoRetryCount = pressed ? 0 : autoRetryCount + 1;
+      state = retryState;
+      if (state == AppState::CONNECTING) {
+        showStatus("CONNECTING", "Reconnecting to toio...");
+      } else {
+        showStatus("SCANNING", "Searching toio...");
+      }
       break;
+    }
     case AppState::INIT:
     default:
       showStatus("INIT", "");
