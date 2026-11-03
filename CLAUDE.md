@@ -10,11 +10,12 @@ M5Stack CoreS3 を運転席（cockpit）にして toio を操作するプロジ�
 | env | フォルダ | 機種 | 役割 |
 |---|---|---|---|
 | `cockpit` | `src/cockpit/` | CoreS3 | 運転席。toio の操作とメーターパネル表示（メイン） |
-| `shovel`（予定） | `src/shovel/` | AtomS3 | toio に載せるショベル (#13) |
+| `shovel` | `src/shovel/` | AtomS3 | toio に載せるショベル。Servo Kit 180° でアームを動かす (#13) |
 | `pedal`（予定） | `src/pedal/` | Core2 | 圧力センサーのアクセル (#12) |
 
 - 各 env は `build_src_filter = +<役割/>` で自分のフォルダだけをビルドする。`setup()` / `loop()` を持つファイルが入口
 - 複数の env で使うコード（BLE の UUID やデータの形など）は `lib/` に置く。通信の決まりごとを変えるときは、送る側と受ける側を同じ PR で直す
+  - `lib/ShovelProtocol/`: cockpit と shovel の BLE の決まりごと
 - 同じ役割の機体が複数台あるときは、`extends` で env を継承し、`build_flags`（例: `-DSHOVEL_ID=1`）と `upload_port` で台ごとに分ける
 
 ## ビルドと書き込み
@@ -22,6 +23,7 @@ M5Stack CoreS3 を運転席（cockpit）にして toio を操作するプロジ�
 ```sh
 pio run -e cockpit                # ビルド
 pio run -e cockpit -t upload      # 書き込み
+pio run -e shovel -t upload       # shovel に書き込み
 ```
 
 - 書き込みはユーザーの指示があってから行う。機体を USB から外していることがある
@@ -34,6 +36,13 @@ pio run -e cockpit -t upload      # 書き込み
 - 本体の傾き（IMU の accel.x）でハンドル
 - タッチパネル: メーター中央の HORN ボタン
 - toio のスピーカーでクラクションとバック音（MIDI 再生で作った音）
+
+## shovel（AtomS3）の入出力
+
+- Grove 端子の G2: Servo Kit 180°。`ESP32Servo` でパルス幅 1000〜2000μs を使う
+- BLE ペリフェラルとして `ToioShovel` の名前でアドバタイズし、アームの位置（0〜100）を受け取る
+- 画面のボタン（BtnA）: cockpit なしで試すための上げ下げ
+- 電源: ATOM Mate for toio に載せる
 
 ## toio ライブラリ（M5StackToio）の注意
 

@@ -1,0 +1,164 @@
+#include <M5Unified.h>
+#include <ESP32Servo.h>
+#include <NimBLEDevice.h>
+#include <ShovelProtocol.hpp>
+
+// サーボ (Servo Kit 180°) は AtomS3 本体の Grove 端子の G2 につなぐ
+constexpr uint8_t SERVO_PIN = 2;
+constexpr uint16_t SERVO_PULSE_MIN_US = 500;  // サーボが受け付けるパルス幅の範囲
+constexpr uint16_t SERVO_PULSE_MAX_US = 2500;
+
+// アームの位置 0 と 100 に対応するパルス幅。向きが逆なら入れ替える
+constexpr uint16_t ARM_DOWN_US = 1000;
+constexpr uint16_t ARM_UP_US = 2000;
+
+// 急に動かすとtoioが揺れるので、少しずつ目標に近づける
+constexpr uint32_t SERVO_STEP_INTERVAL_MS = 10;
+constexpr uint16_t SERVO_STEP_US = 10; // SERVO_STEP_INTERVAL_MS ごとに動かす量。端から端まで約1秒
+
+Servo servo;
+uint16_t currentPulseUs = ARM_DOWN_US;
+uint32_t lastStepMs = 0;
+
+// BLE のコールバックは別のタスクから呼ばれるので volatile にする
+volatile uint8_t targetArm = ShovelProtocol::ARM_MIN;
+volatile bool connected = false;
+
+NimBLECharacteristic* armCharacteristic = nullptr;
+
+uint16_t armToPulse(uint8_t arm)
+{
+    return map(arm, ShovelProtocol::ARM_MIN, ShovelProtocol::ARM_MAX, ARM_DOWN_US, ARM_UP_US);
+}
+
+class ServerCallbacks : public NimBLEServerCallbacks
+{
+    void onConnect(NimBLEServer* server) override { connected = true; }
+    // 切断されたらアームはその場で止めておき、アドバタイズを再開して次の接続を待つ
+    void onDisconnect(NimBLEServer* server) override { connected = false; }
+};
+
+class ArmCallbacks : public NimBLECharacteristicCallbacks
+{
+    void onWrite(NimBLECharacteristic* characteristic) override
+    {
+        NimBLEAttValue value = characteristic->getValue();
+        if (value.length() < 1)
+        {
+            return;
+        }
+        uint8_t arm = value.data()[0];
+        targetArm = arm > ShovelProtocol::ARM_MAX ? ShovelProtocol::ARM_MAX : arm;
+    }
+};
+
+void setupBle()
+{
+    NimBLEDevice::init(ShovelProtocol::DEVICE_NAME);
+    NimBLEServer* server = NimBLEDevice::createServer();
+    server->setCallbacks(new ServerCallbacks());
+
+    NimBLEService* service = server->createService(ShovelProtocol::SERVICE_UUID);
+    armCharacteristic = service->createCharacteristic(
+        ShovelProtocol::ARM_CHAR_UUID,
+        NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
+    armCharacteristic->setCallbacks(new ArmCallbacks());
+    armCharacteristic->setValue(static_cast<uint8_t>(targetArm));
+    service->start();
+
+    NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();
+    advertising->addServiceUUID(ShovelProtocol::SERVICE_UUID);
+    advertising->setScanResponse(true); // 名前をスキャン応答に載せる
+    advertising->start();
+}
+
+// 目標のパルス幅に少しずつ近づける
+void updateServo()
+{
+    uint32_t now = millis();
+    if (now - lastStepMs < SERVO_STEP_INTERVAL_MS)
+    {
+        return;
+    }
+    lastStepMs = now;
+
+    uint16_t target = armToPulse(targetArm);
+    if (currentPulseUs == target)
+    {
+        return;
+    }
+    if (currentPulseUs < target)
+    {
+        currentPulseUs = min<uint16_t>(currentPulseUs + SERVO_STEP_US, target);
+    }
+    else
+    {
+        currentPulseUs = max<uint16_t>(currentPulseUs - SERVO_STEP_US, target);
+    }
+    servo.writeMicroseconds(currentPulseUs);
+}
+
+// 接続状態とアームの位置が変わったときだけ描き直す
+void updateDisplay()
+{
+    static int lastArm = -1;
+    static int lastConnected = -1;
+    int arm = targetArm;
+    int isConnected = connected ? 1 : 0;
+    if (arm == lastArm && isConnected == lastConnected)
+    {
+        return;
+    }
+    lastArm = arm;
+    lastConnected = isConnected;
+
+    auto& d = M5.Display;
+    d.fillScreen(TFT_BLACK);
+    d.setTextDatum(top_center);
+    d.setTextColor(TFT_WHITE);
+    d.setTextSize(2);
+    d.drawString("SHOVEL", d.width() / 2, 4);
+
+    d.setTextSize(1);
+    d.setTextColor(isConnected ? TFT_GREEN : TFT_YELLOW);
+    d.drawString(isConnected ? "connected" : "waiting cockpit", d.width() / 2, 26);
+
+    // アームの位置を縦のバーで出す
+    constexpr int BAR_W = 24;
+    constexpr int BAR_TOP = 42;
+    constexpr int BAR_H = 64;
+    int x = (d.width() - BAR_W) / 2;
+    d.drawRect(x, BAR_TOP, BAR_W, BAR_H, TFT_DARKGREY);
+    int fillH = (BAR_H - 2) * arm / ShovelProtocol::ARM_MAX;
+    d.fillRect(x + 1, BAR_TOP + BAR_H - 1 - fillH, BAR_W - 2, fillH, TFT_ORANGE);
+
+    d.setTextColor(TFT_WHITE);
+    d.drawString(String("ARM ") + arm, d.width() / 2, BAR_TOP + BAR_H + 6);
+}
+
+void setup()
+{
+    auto cfg = M5.config();
+    M5.begin(cfg);
+
+    servo.attach(SERVO_PIN, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
+    servo.writeMicroseconds(currentPulseUs);
+
+    setupBle();
+}
+
+void loop()
+{
+    M5.update();
+
+    // cockpit なしでも試せるよう、画面のボタンで上げ下げを切り替える
+    if (M5.BtnA.wasPressed())
+    {
+        targetArm = targetArm > ShovelProtocol::ARM_MIN ? ShovelProtocol::ARM_MIN : ShovelProtocol::ARM_MAX;
+        armCharacteristic->setValue(static_cast<uint8_t>(targetArm));
+    }
+
+    updateServo();
+    updateDisplay();
+    delay(1);
+}
