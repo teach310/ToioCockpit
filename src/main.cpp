@@ -9,6 +9,7 @@ LGFX_Sprite canvas(&dsp);
 GpioButton buttonBlue(8);
 GpioButton buttonRed(9);
 Joystick joystick;
+bool joystickAvailable = false; // 起動時にJoyStickが応答したか
 
 Toio toio;
 ToioCore* toiocore = nullptr;
@@ -124,11 +125,18 @@ void setup(void)
   joyCfg.sda = M5.getPin(m5::pin_name_t::port_a_sda);
   joyCfg.scl = M5.getPin(m5::pin_name_t::port_a_scl);
   joyCfg.yCalibration = {200, 32390, 65380}; // 実測値のキャリブレーション値
-  joystick.begin(joyCfg);
+  joystickAvailable = joystick.begin(joyCfg);
 
   dsp.setTextSize(2);
   canvas.createSprite(dsp.width(), 40);
   canvas.setTextSize(2);
+
+  // JoyStickがなくてもボタンで走れるので、知らせるだけで先に進む
+  if (!joystickAvailable) {
+    showStatus("WARNING", "Joystick not found");
+    delay(2000);
+  }
+
   state = AppState::SCANNING;
   showStatus("SCANNING", "Searching toio...");
 }
@@ -170,6 +178,15 @@ void resetDriveState() {
   currentThrottle = 0;
   lastMotorMode = MotorMode::NONE;
   lastControlMs = 0;
+}
+
+// JoyStickがないときはI2Cを読まない（押されていない扱いのまま）
+void updateInputs() {
+  buttonBlue.update();
+  buttonRed.update();
+  if (joystickAvailable) {
+    joystick.update();
+  }
 }
 
 void loop(void)
@@ -216,9 +233,7 @@ void loop(void)
       }
       lastControlMs = now;
 
-      buttonBlue.update();
-      buttonRed.update();
-      joystick.update();
+      updateInputs();
 
       if (joystick.isPressed()) {
         spinInPlace();
@@ -241,9 +256,7 @@ void loop(void)
       break;
     }
     case AppState::ERROR: {
-      buttonBlue.update();
-      buttonRed.update();
-      joystick.update();
+      updateInputs();
       bool pressed = buttonBlue.wasPressed() || buttonRed.wasPressed() || joystick.wasPressed();
       bool canAutoRetry = autoRetryCount < MAX_AUTO_RETRIES;
       if (!pressed && !(canAutoRetry && millis() - errorStartMs >= RETRY_INTERVAL_MS)) {
