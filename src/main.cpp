@@ -72,9 +72,26 @@ uint8_t BACKUP_SOUND[] = {
   40, 128, 0,
 };
 
+// 衝突音: 低い音へ一気に下がる「ドガッ」。1回だけ鳴らす
+uint8_t CRASH_SOUND[] = {
+  0x03, 1, 6,
+  2, 57, 255,
+  2, 45, 255,
+  2, 52, 255,
+  2, 40, 255,
+  3, 47, 255,
+  3, 36, 255,
+};
+constexpr uint32_t CRASH_SOUND_MS = 140;       // 衝突音の長さ。この間はバック音で上書きしない
+constexpr uint32_t CRASH_COOLDOWN_MS = 3000;   // 衝突音を鳴らしすぎないよう、次に鳴らせるまでの間隔
+
 // 最後に鳴らした音。同じ音を送り直さないために使う
-enum class SoundMode { NONE, HORN, BACKUP };
+enum class SoundMode { NONE, HORN, BACKUP, CRASH };
 SoundMode lastSoundMode = SoundMode::NONE;
+
+// toioのモーション検出で衝突が来たら立てる。鳴らすかどうかは制御周期の中で決める
+bool crashDetected = false;
+uint32_t lastCrashMs = 0;
 bool hornButtonPressed = false; // 画面のクラクションボタンを押した見た目になっているか
 
 void updateSound(SoundMode mode) {
@@ -87,6 +104,9 @@ void updateSound(SoundMode mode) {
       break;
     case SoundMode::BACKUP:
       toiocore->playSoundRaw(BACKUP_SOUND, sizeof(BACKUP_SOUND));
+      break;
+    case SoundMode::CRASH:
+      toiocore->playSoundRaw(CRASH_SOUND, sizeof(CRASH_SOUND));
       break;
     case SoundMode::NONE:
       toiocore->stopSound();
@@ -258,6 +278,13 @@ void startRunning() {
   lastControlMs = 0;
   hornButtonPressed = false;
   drawHornButton(false);
+  crashDetected = false;
+  // 接続ごとに登録し直す。コールバックは toio.loop() の中で呼ばれる
+  toiocore->onMotion([](ToioCoreMotionData motion) {
+    if (motion.clash) {
+      crashDetected = true;
+    }
+  });
   state = AppState::RUNNING;
 }
 
@@ -329,9 +356,21 @@ void loop(void)
         hornButtonPressed = hornTouched;
       }
 
-      // クラクションボタンを押している間はクラクション。それ以外で後ろに動いている間はバック音
+      // 衝突したら衝突音。ただし前回から CRASH_COOLDOWN_MS たつまでと、クラクション中は鳴らさない
+      if (crashDetected) {
+        crashDetected = false;
+        if (!hornTouched && (lastCrashMs == 0 || now - lastCrashMs >= CRASH_COOLDOWN_MS)) {
+          lastCrashMs = now;
+          updateSound(SoundMode::CRASH);
+        }
+      }
+      bool crashPlaying = lastSoundMode == SoundMode::CRASH && now - lastCrashMs < CRASH_SOUND_MS;
+
+      // クラクションボタンを押している間はクラクション。衝突音の最中でなければ、後ろに動いている間はバック音
       if (hornTouched) {
         updateSound(SoundMode::HORN);
+      } else if (crashPlaying) {
+        // 衝突音を最後まで鳴らす
       } else if (currentThrottle < 0) {
         updateSound(SoundMode::BACKUP);
       } else {
