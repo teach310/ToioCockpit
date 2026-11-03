@@ -22,13 +22,17 @@ enum class AppState {
   SCANNING,
   CONNECTING,
   RUNNING,
-  ERROR
+  ERROR,
+  SLEEP
 };
 AppState state = AppState::SCANNING;
 
 constexpr uint32_t CONTROL_INTERVAL_MS = 50;  // 入力読み取りとモーター制御の周期
 constexpr uint32_t CORE_BATTERY_INTERVAL_MS = 2000; // CoreS3の電池残量を読む周期
 constexpr uint32_t RETRY_INTERVAL_MS = 5000;  // ERRORから自動で再試行するまでの時間
+constexpr uint32_t DIM_AFTER_MS = 30 * 1000;     // 触らないまま、この時間たったら画面を暗くする
+constexpr uint32_t SLEEP_AFTER_MS = 3 * 60 * 1000; // 触らないまま、この時間たったらtoioとの接続を切って画面を消す
+constexpr uint8_t DIM_BRIGHTNESS = 20;
 constexpr uint8_t MAX_AUTO_RETRIES = 3;       // 放置時の電池消費を抑えるため、自動再試行は回数を限る
 constexpr uint8_t SCAN_DURATION_SEC = 3;
 constexpr uint32_t JOYSTICK_WARNING_MS = 2000; // JoyStickが見つからないときの警告の表示時間
@@ -48,6 +52,12 @@ uint32_t lastControlMs = 0;
 uint32_t errorStartMs = 0;
 AppState retryState = AppState::SCANNING;
 uint8_t autoRetryCount = 0;
+
+// 自動スリープ用。最後に操作した時刻と、画面を暗くしているか
+uint32_t lastActivityMs = 0;
+bool dimmed = false;
+uint8_t normalBrightness = 0;
+AppState wakeState = AppState::SCANNING; // スリープから起きたときに戻る先
 
 // 最後に送ったモーター命令。同じ命令を送り直さないために使う
 enum class MotorMode { NONE, DRIVE, SPIN };
@@ -165,6 +175,7 @@ void setup(void)
     joystick.setRgbColor(0);
   }
 
+  normalBrightness = M5.Display.getBrightness();
   dashboard.begin();
   updateCoreBattery();
 
@@ -223,6 +234,59 @@ void enterError(const char* detail, AppState nextState) {
              Dashboard::Tone::ERROR);
 }
 
+// 操作があったら呼ぶ。暗くしていた画面を元に戻す
+void markActivity() {
+  lastActivityMs = millis();
+  if (dimmed) {
+    M5.Display.setBrightness(normalBrightness);
+    dimmed = false;
+  }
+}
+
+// 触らない時間に応じて画面を暗くする。スリープに入るべきなら true を返す
+bool checkIdle() {
+  uint32_t idle = millis() - lastActivityMs;
+  if (!dimmed && idle >= DIM_AFTER_MS) {
+    M5.Display.setBrightness(DIM_BRIGHTNESS);
+    dimmed = true;
+  }
+  return idle >= SLEEP_AFTER_MS;
+}
+
+// 放置時の電池消費を抑えるため、toioとの接続を切って画面を消す。nextState は起きたときに戻る先
+void enterSleep(AppState nextState) {
+  if (toiocore && toiocore->isConnected()) {
+    toiocore->stopSound();
+    toiocore->drive(0, 0);
+    toiocore->disconnect();
+  }
+  updateJoystickLed(false);
+  dashboard.setRunning(false);
+  dashboard.setGear(Dashboard::Gear::P);
+  dashboard.setSpeed(0);
+  dashboard.setHornPressed(false);
+  dashboard.setToioBattery(-1);
+  showStatus("SLEEP", "Push Button to wake", Dashboard::Tone::INFO);
+  M5.Display.setBrightness(0);
+  M5.Display.sleep();
+  wakeState = nextState;
+  state = AppState::SLEEP;
+}
+
+void wakeUp() {
+  M5.Display.wakeup();
+  dimmed = false;
+  M5.Display.setBrightness(normalBrightness);
+  markActivity();
+  autoRetryCount = 0;
+  state = wakeState;
+  if (state == AppState::CONNECTING) {
+    showStatus("CONNECTING", "Reconnecting to toio...", Dashboard::Tone::INFO);
+  } else {
+    showStatus("SCANNING", "Searching toio...", Dashboard::Tone::INFO);
+  }
+}
+
 // 接続できたらRUNNINGに入る。前回の接続で残ったモーター制御の状態は初期化する
 void startRunning() {
   autoRetryCount = 0;
@@ -238,6 +302,7 @@ void startRunning() {
   dashboard.setRunning(true);
   dashboard.setGear(Dashboard::Gear::N);
   showStatus("RUNNING", "", Dashboard::Tone::OK);
+  markActivity();
   state = AppState::RUNNING;
 }
 
@@ -258,7 +323,10 @@ void loop(void)
   if (toiocore) {
     toiocore->_loop();
   }
-  updateCoreBattery();
+  // スリープ中は画面を消しているので、電池残量の読み取りも描き直しもしない
+  if (state != AppState::SLEEP) {
+    updateCoreBattery();
+  }
 
   switch (state) {
     case AppState::SCANNING: {
@@ -330,13 +398,30 @@ void loop(void)
       } else {
         updateSound(SoundMode::NONE);
       }
+
+      // 動いている間や、ボタン・画面に触れている間は操作中とみなす
+      bool active = spinning || buttonBlue.isPressed() || buttonRed.isPressed() ||
+                    M5.Touch.getDetail().isPressed() || currentThrottle != 0;
+      if (active) {
+        markActivity();
+      } else if (checkIdle()) {
+        enterSleep(AppState::CONNECTING);
+      }
       break;
     }
     case AppState::ERROR: {
       updateInputs();
       bool pressed = buttonBlue.wasPressed() || buttonRed.wasPressed() || joystick.wasPressed();
       bool canAutoRetry = autoRetryCount < MAX_AUTO_RETRIES;
+      if (pressed) {
+        markActivity();
+      }
       if (!pressed && !(canAutoRetry && millis() - errorStartMs >= RETRY_INTERVAL_MS)) {
+        // 自動再試行を使い切ってボタン待ちのまま放置されたら、スリープに入る
+        if (!canAutoRetry && checkIdle()) {
+          enterSleep(retryState);
+          break;
+        }
         delay(CONTROL_INTERVAL_MS);
         break;
       }
@@ -350,6 +435,19 @@ void loop(void)
       }
       break;
     }
+    case AppState::SLEEP: {
+      updateInputs();
+      bool pressed = buttonBlue.wasPressed() || buttonRed.wasPressed() || joystick.wasPressed() ||
+                     M5.Touch.getDetail().wasPressed();
+      if (pressed) {
+        wakeUp();
+      } else {
+        delay(CONTROL_INTERVAL_MS);
+      }
+      break;
+    }
   }
-  dashboard.draw();
+  if (state != AppState::SLEEP) {
+    dashboard.draw();
+  }
 }
