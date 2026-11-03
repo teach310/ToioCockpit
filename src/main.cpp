@@ -55,6 +55,42 @@ MotorMode lastMotorMode = MotorMode::NONE;
 int8_t lastThrottle = 0;
 int8_t lastSteering = 0;
 
+// toioのMIDI再生データ: {0x03, 繰り返し回数(0は無限), 音の数, (長さ[10ms], ノート番号, 音量)...}
+// toioの効果音には合うものがないので作る。ノート番号128は無音
+// クラクション: 低めの1音(F4)をそのまま伸ばす。太い「ブーッ」
+uint8_t HORN_SOUND[] = {
+  0x03, 0, 1,
+  100, 65, 255,
+};
+// バック音: 「ピーッ、ピーッ」(B5を0.4秒鳴らして0.4秒休む)
+uint8_t BACKUP_SOUND[] = {
+  0x03, 0, 2,
+  40, 83, 160,
+  40, 128, 0,
+};
+
+// 最後に鳴らした音。同じ音を送り直さないために使う
+enum class SoundMode { NONE, HORN, BACKUP };
+SoundMode lastSoundMode = SoundMode::NONE;
+
+void updateSound(SoundMode mode) {
+  if (mode == lastSoundMode) {
+    return;
+  }
+  switch (mode) {
+    case SoundMode::HORN:
+      toiocore->playSoundRaw(HORN_SOUND, sizeof(HORN_SOUND));
+      break;
+    case SoundMode::BACKUP:
+      toiocore->playSoundRaw(BACKUP_SOUND, sizeof(BACKUP_SOUND));
+      break;
+    case SoundMode::NONE:
+      toiocore->stopSound();
+      break;
+  }
+  lastSoundMode = mode;
+}
+
 void sendDrive(int8_t throttle, int8_t steering) {
   if (lastMotorMode == MotorMode::DRIVE && lastThrottle == throttle && lastSteering == steering) {
     return;
@@ -182,6 +218,7 @@ void startRunning() {
   autoRetryCount = 0;
   currentThrottle = 0;
   lastMotorMode = MotorMode::NONE;
+  lastSoundMode = SoundMode::NONE;
   lastControlMs = 0;
   state = AppState::RUNNING;
 }
@@ -246,6 +283,15 @@ void loop(void)
         updateCurrentThrottle(0, DECEL_STEP);
         sendDrive(currentThrottle, 0);
         showStatus("RUNNING", "Push Button to drive");
+      }
+
+      // 画面に触れている間はクラクション。それ以外で後ろに動いている間はバック音
+      if (M5.Touch.getDetail().isPressed()) {
+        updateSound(SoundMode::HORN);
+      } else if (currentThrottle < 0) {
+        updateSound(SoundMode::BACKUP);
+      } else {
+        updateSound(SoundMode::NONE);
       }
       break;
     }
