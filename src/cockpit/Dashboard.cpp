@@ -139,14 +139,24 @@ void Dashboard::setHornPressed(bool pressed)
     }
 }
 
-void Dashboard::setShovel(bool connected, int arm)
+void Dashboard::setShovel(ShovelState state, int arm)
 {
-    if (connected != _shovelConnected || arm != _shovelArm)
+    if (state != ShovelState::CONNECTED)
     {
-        _shovelConnected = connected;
+        arm = -1;
+    }
+    if (state != _shovelState || arm != _shovelArm)
+    {
+        _shovelState = state;
         _shovelArm = arm;
         _dirty = true;
     }
+}
+
+bool Dashboard::isShovelHit(int x, int y) const
+{
+    // 表示より少し広めに取って、指で押しやすくする
+    return x < 110 && y >= 200;
 }
 
 bool Dashboard::isHornHit(int x, int y) const
@@ -396,7 +406,7 @@ void Dashboard::drawBattery(int x, const char* label, int percent, bool charging
     }
 }
 
-// 左下にショベルのつながりとアームの位置を横長のバーで出す
+// 左下にショベルのつながりとアームの位置を横長のバーで出す。探していないときは「TAP」でタッチを促す
 void Dashboard::drawShovel()
 {
     constexpr int X = 8;
@@ -407,14 +417,17 @@ void Dashboard::drawShovel()
 
     _canvas.setFont(&fonts::Font0);
     _canvas.setTextDatum(middle_left);
-    _canvas.setTextColor(_shovelConnected ? COLOR_TEXT : COLOR_DIM);
+    bool connected = _shovelState == ShovelState::CONNECTED;
+    _canvas.setTextColor(connected ? COLOR_TEXT : COLOR_DIM);
     _canvas.drawString("SHOVEL", X, LABEL_Y);
 
     _canvas.drawRoundRect(X, BAR_Y, W, BAR_H, 2, COLOR_DIM);
-    if (!_shovelConnected || _shovelArm < 0)
+    if (!connected || _shovelArm < 0)
     {
         _canvas.setTextDatum(middle_right);
-        _canvas.drawString("--", X + W, LABEL_Y);
+        bool searching = _shovelState == ShovelState::SEARCHING;
+        _canvas.setTextColor(searching ? COLOR_CYAN : COLOR_DIM);
+        _canvas.drawString(searching ? "SEARCH" : "TAP", X + W, LABEL_Y);
         return;
     }
     int fillW = (W - 4) * min(_shovelArm, 100) / 100;

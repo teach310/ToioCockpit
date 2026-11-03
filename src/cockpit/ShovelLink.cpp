@@ -4,7 +4,8 @@
 namespace
 {
     constexpr uint32_t SCAN_DURATION_SEC = 2;
-    constexpr uint32_t SCAN_INTERVAL_MS = 10000; // 見つからなかったとき、次に探すまでの間隔
+    constexpr uint8_t SEARCH_ATTEMPTS = 3;      // startSearch() 1回につき探す回数。見つからなければやめる
+    constexpr uint32_t SCAN_INTERVAL_MS = 5000; // 見つからなかったとき、次に探すまでの間隔
     constexpr uint8_t CONNECT_TIMEOUT_SEC = 3;   // 接続を待つ時間。この間は操作が止まるので短くする
 
     // スキャンの完了は NimBLE のタスクから知らされるので、どの ShovelLink のものかを覚えておく
@@ -30,12 +31,31 @@ void ShovelLink::onScanComplete(NimBLEScanResults results)
     }
 }
 
+void ShovelLink::startSearch()
+{
+    if (isConnected())
+    {
+        return;
+    }
+    _remainingScans = SEARCH_ATTEMPTS;
+    _lastScanMs = 0; // 次に update() を呼んだらすぐ探す
+}
+
+bool ShovelLink::isSearching() const
+{
+    return _state == State::SCANNING || _state == State::FOUND || (_state == State::IDLE && _remainingScans > 0);
+}
+
 void ShovelLink::update(bool canConnect)
 {
     switch (_state)
     {
     case State::IDLE:
     {
+        if (_remainingScans == 0)
+        {
+            return;
+        }
         uint32_t now = millis();
         if (_lastScanMs != 0 && now - _lastScanMs < SCAN_INTERVAL_MS)
         {
@@ -51,6 +71,7 @@ void ShovelLink::update(bool canConnect)
         scan->setActiveScan(true);
         scanningLink = this;
         _state = State::SCANNING;
+        _remainingScans--;
         // 終わるのを待たずに戻る。見つかったら onResult で FOUND になる
         if (!scan->start(SCAN_DURATION_SEC, onScanComplete, false))
         {
@@ -69,8 +90,10 @@ void ShovelLink::update(bool canConnect)
     case State::CONNECTED:
         if (!_client->isConnected())
         {
+            // 途中で切れたら、決まった回数だけつなぎ直しを試す
             _armChar = nullptr;
             _state = State::IDLE;
+            startSearch();
         }
         break;
     }
@@ -120,7 +143,7 @@ void ShovelLink::stop()
     }
     _armChar = nullptr;
     _state = State::IDLE;
-    _lastScanMs = 0; // 次に update() を呼んだらすぐ探す
+    _remainingScans = 0;
 }
 
 bool ShovelLink::isConnected()
