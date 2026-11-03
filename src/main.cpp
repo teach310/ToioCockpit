@@ -2,9 +2,9 @@
 #include <Toio.h>
 #include "GpioButton.hpp"
 #include "Joystick.hpp"
+#include "Dashboard.hpp"
 
-static auto &dsp = M5.Display;
-LGFX_Sprite canvas(&dsp);
+Dashboard dashboard(M5.Display);
 
 constexpr uint8_t BUTTON_BLUE_PIN = 8; // Port B
 constexpr uint8_t BUTTON_RED_PIN = 9;  // Port B
@@ -27,7 +27,7 @@ enum class AppState {
 AppState state = AppState::SCANNING;
 
 constexpr uint32_t CONTROL_INTERVAL_MS = 50;  // 入力読み取りとモーター制御の周期
-constexpr uint32_t DISPLAY_INTERVAL_MS = 500; // 表示内容が同じときの再描画周期
+constexpr uint32_t CORE_BATTERY_INTERVAL_MS = 2000; // CoreS3の電池残量を読む周期
 constexpr uint32_t RETRY_INTERVAL_MS = 5000;  // ERRORから自動で再試行するまでの時間
 constexpr uint8_t MAX_AUTO_RETRIES = 3;       // 放置時の電池消費を抑えるため、自動再試行は回数を限る
 constexpr uint8_t SCAN_DURATION_SEC = 3;
@@ -40,9 +40,6 @@ constexpr int8_t ACCEL_STEP = 30;    // ボタンを押している間の加速
 constexpr int8_t DECEL_STEP = 10;    // ボタンを離したときの減速
 constexpr float STEERING_GAIN = 40;  // 本体の傾き(accel.x)をステアリングに変換する倍率
 constexpr uint8_t SPIN_SPEED = 100;  // その場で回転するときのモーターの速さ
-
-constexpr int STATUS_HEIGHT = 40;      // 画面上部のステータス表示の高さ
-constexpr int HORN_BUTTON_RADIUS = 70; // 画面中央のクラクションボタンの半径
 
 int8_t currentThrottle = 0;
 uint32_t lastControlMs = 0;
@@ -92,7 +89,6 @@ SoundMode lastSoundMode = SoundMode::NONE;
 // toioのモーション検出で衝突が来たら立てる。鳴らすかどうかは制御周期の中で決める
 bool crashDetected = false;
 uint32_t lastCrashMs = 0;
-bool hornButtonPressed = false; // 画面のクラクションボタンを押した見た目になっているか
 
 void updateSound(SoundMode mode) {
   if (mode == lastSoundMode) {
@@ -151,37 +147,21 @@ void updateCurrentThrottle(int8_t targetThrottle, int8_t step) {
   }
 }
 
-// 表示内容が変わったときか、一定時間たったとき（バッテリー表示の更新）だけ再描画する
-void showStatus(const char* status, const char* detail = nullptr) {
-  static const char* lastStatus = nullptr;
-  static const char* lastDetail = nullptr;
-  static uint32_t lastDrawMs = 0;
+// 状態が変わったときの表示。SCANNINGのように次の処理で止まる状態があるので、すぐ描く
+void showStatus(const char* status, const char* detail, Dashboard::Tone tone) {
+  dashboard.setStatus(status, detail, tone);
+  dashboard.draw(true);
+}
+
+void updateCoreBattery() {
+  static uint32_t lastMs = 0;
   uint32_t now = millis();
-  auto same = [](const char* a, const char* b) {
-    return a == b || (a && b && strcmp(a, b) == 0);
-  };
-  if (same(status, lastStatus) && same(detail, lastDetail) && now - lastDrawMs < DISPLAY_INTERVAL_MS) {
+  if (lastMs != 0 && now - lastMs < CORE_BATTERY_INTERVAL_MS) {
     return;
   }
-  lastStatus = status;
-  lastDetail = detail;
-  lastDrawMs = now;
-
-  canvas.fillScreen(TFT_BLACK);
-  canvas.setTextColor(TFT_WHITE, TFT_BLACK);
-  canvas.setCursor(4, 2);
-  canvas.printf("State: %s", status);
-
-  // バッテリー表示
-  int percent = M5.Power.getBatteryLevel();
-  canvas.setCursor(160, 2);
-  canvas.printf("Bat: %d%%", percent);
-
-  if (detail) {
-    canvas.setCursor(4, 22);
-    canvas.printf("%s", detail);
-  }
-  canvas.pushSprite(0, 0);
+  lastMs = now;
+  bool charging = M5.Power.isCharging() == m5::Power_Class::is_charging;
+  dashboard.setCoreBattery(M5.Power.getBatteryLevel(), charging);
 }
 
 void setup(void)
@@ -197,66 +177,37 @@ void setup(void)
   joyCfg.yCalibration = {200, 32390, 65380}; // 実測値のキャリブレーション値
   joystickAvailable = joystick.begin(joyCfg);
 
-  dsp.setTextSize(2);
-  canvas.createSprite(dsp.width(), STATUS_HEIGHT);
-  canvas.setTextSize(2);
+  dashboard.begin();
+  updateCoreBattery();
 
   // JoyStickがなくてもボタンで走れるので、知らせるだけで先に進む
   if (!joystickAvailable) {
-    showStatus("WARNING", "Joystick not found");
+    showStatus("WARNING", "Joystick not found", Dashboard::Tone::WARN);
     delay(JOYSTICK_WARNING_MS);
   }
 
   state = AppState::SCANNING;
-  showStatus("SCANNING", "Searching toio...");
+  showStatus("SCANNING", "Searching toio...", Dashboard::Tone::INFO);
 }
 
 // targetThrottle に向けて加速しながら、本体の傾きで曲がる
-void driveToward(int8_t targetThrottle, const char* detail) {
+void driveToward(int8_t targetThrottle) {
   M5.Imu.update();
   auto data = M5.Imu.getImuData();
   updateCurrentThrottle(targetThrottle, ACCEL_STEP);
   int8_t steering = (int8_t)(-data.accel.x * STEERING_GAIN);
   sendDrive(currentThrottle, steering);
-  showStatus("RUNNING", detail);
 }
 
 // 左右のモーターを逆回転させてその場で回転する
 void spinInPlace() {
   currentThrottle = 0;
   sendSpin();
-  showStatus("RUNNING", "Spin");
-}
-
-// 画面中央のクラクションボタン。上のステータス表示を避けて残りの真ん中に置く
-int hornButtonX() { return dsp.width() / 2; }
-int hornButtonY() { return STATUS_HEIGHT + (dsp.height() - STATUS_HEIGHT) / 2; }
-
-// 押されているときは色を変える
-void drawHornButton(bool pressed) {
-  uint16_t color = pressed ? TFT_ORANGE : TFT_DARKGREY;
-  dsp.fillCircle(hornButtonX(), hornButtonY(), HORN_BUTTON_RADIUS, color);
-  dsp.drawCircle(hornButtonX(), hornButtonY(), HORN_BUTTON_RADIUS, TFT_WHITE);
-  dsp.setTextColor(TFT_WHITE, color);
-  dsp.setTextDatum(middle_center);
-  dsp.setTextSize(3);
-  dsp.drawString("HORN", hornButtonX(), hornButtonY());
-  dsp.setTextSize(2);
-  dsp.setTextDatum(top_left);
-}
-
-void clearHornButton() {
-  dsp.fillRect(0, STATUS_HEIGHT, dsp.width(), dsp.height() - STATUS_HEIGHT, TFT_BLACK);
 }
 
 bool isHornButtonTouched() {
   auto touch = M5.Touch.getDetail();
-  if (!touch.isPressed()) {
-    return false;
-  }
-  int dx = touch.x - hornButtonX();
-  int dy = touch.y - hornButtonY();
-  return dx * dx + dy * dy <= HORN_BUTTON_RADIUS * HORN_BUTTON_RADIUS;
+  return touch.isPressed() && dashboard.isHornHit(touch.x, touch.y);
 }
 
 // ERRORにして、ボタンを押すか一定時間たったら nextState からやり直す
@@ -265,8 +216,13 @@ void enterError(const char* detail, AppState nextState) {
   state = AppState::ERROR;
   retryState = nextState;
   errorStartMs = millis();
-  clearHornButton();
-  showStatus("ERROR", autoRetryCount < MAX_AUTO_RETRIES ? detail : "Push Button to retry");
+  dashboard.setRunning(false);
+  dashboard.setGear(Dashboard::Gear::P);
+  dashboard.setSpeed(0);
+  dashboard.setHornPressed(false);
+  dashboard.setToioBattery(-1);
+  showStatus("ERROR", autoRetryCount < MAX_AUTO_RETRIES ? detail : "Push Button to retry",
+             Dashboard::Tone::ERROR);
 }
 
 // 接続できたらRUNNINGに入る。前回の接続で残ったモーター制御の状態は初期化する
@@ -276,8 +232,6 @@ void startRunning() {
   lastMotorMode = MotorMode::NONE;
   lastSoundMode = SoundMode::NONE;
   lastControlMs = 0;
-  hornButtonPressed = false;
-  drawHornButton(false);
   crashDetected = false;
   // 接続ごとに登録し直す。コールバックは toio.loop() の中で呼ばれる
   toiocore->onMotion([](ToioCoreMotionData motion) {
@@ -285,6 +239,14 @@ void startRunning() {
       crashDetected = true;
     }
   });
+  // toioの電池残量は最初に1回読み、あとは変化の通知で受け取る
+  dashboard.setToioBattery(toiocore->getBatteryLevel());
+  toiocore->onBattery([](uint8_t level) {
+    dashboard.setToioBattery(level);
+  });
+  dashboard.setRunning(true);
+  dashboard.setGear(Dashboard::Gear::N);
+  showStatus("RUNNING", "", Dashboard::Tone::OK);
   state = AppState::RUNNING;
 }
 
@@ -301,6 +263,7 @@ void loop(void)
 {
   M5.update();
   toio.loop();
+  updateCoreBattery();
 
   switch (state) {
     case AppState::SCANNING: {
@@ -308,7 +271,7 @@ void loop(void)
       if (!found.empty()) {
         toiocore = found.at(0);
         state = AppState::CONNECTING;
-        showStatus("CONNECTING", "Connecting to toio...");
+        showStatus("CONNECTING", "Connecting to toio...", Dashboard::Tone::INFO);
       } else {
         enterError("No toio found. Retry...", AppState::SCANNING);
       }
@@ -338,22 +301,29 @@ void loop(void)
 
       updateInputs();
 
-      if (joystick.isPressed()) {
+      bool spinning = joystick.isPressed();
+      if (spinning) {
         spinInPlace();
       } else if (buttonBlue.isPressed()) {
-        driveToward(FORWARD_THROTTLE, "Forward");
+        driveToward(FORWARD_THROTTLE);
       } else if (buttonRed.isPressed()) {
-        driveToward(BACKWARD_THROTTLE, "Backward");
+        driveToward(BACKWARD_THROTTLE);
       } else {
         updateCurrentThrottle(0, DECEL_STEP);
         sendDrive(currentThrottle, 0);
-        showStatus("RUNNING", "Push Button to drive");
       }
 
       bool hornTouched = isHornButtonTouched();
-      if (hornTouched != hornButtonPressed) {
-        drawHornButton(hornTouched);
-        hornButtonPressed = hornTouched;
+      dashboard.setHornPressed(hornTouched);
+      dashboard.setSpeed(currentThrottle);
+      if (spinning) {
+        dashboard.setGear(Dashboard::Gear::S);
+      } else if (currentThrottle > 0) {
+        dashboard.setGear(Dashboard::Gear::D);
+      } else if (currentThrottle < 0) {
+        dashboard.setGear(Dashboard::Gear::R);
+      } else {
+        dashboard.setGear(Dashboard::Gear::N);
       }
 
       // 衝突したら衝突音。ただし前回から CRASH_COOLDOWN_MS たつまでと、クラクション中は鳴らさない
@@ -390,11 +360,12 @@ void loop(void)
       autoRetryCount = pressed ? 0 : autoRetryCount + 1;
       state = retryState;
       if (state == AppState::CONNECTING) {
-        showStatus("CONNECTING", "Reconnecting to toio...");
+        showStatus("CONNECTING", "Reconnecting to toio...", Dashboard::Tone::INFO);
       } else {
-        showStatus("SCANNING", "Searching toio...");
+        showStatus("SCANNING", "Searching toio...", Dashboard::Tone::INFO);
       }
       break;
     }
   }
+  dashboard.draw();
 }
