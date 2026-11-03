@@ -208,7 +208,7 @@ void Dashboard::drawStatusBar()
     _canvas.setFont(&fonts::Font0);
     _canvas.setTextDatum(middle_right);
     _canvas.setTextColor(COLOR_DIM);
-    _canvas.drawString("toio DRIVE", _canvas.width() - 8, STATUS_BAR_HEIGHT / 2);
+    _canvas.drawString("toio COCKPIT", _canvas.width() - 8, STATUS_BAR_HEIGHT / 2);
 }
 
 void Dashboard::drawGauge()
