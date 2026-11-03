@@ -24,8 +24,36 @@ enum class AppState {
 };
 AppState state = AppState::INIT;
 
+constexpr uint32_t CONTROL_INTERVAL_MS = 50;  // 入力読み取りとモーター制御の周期
+constexpr uint32_t DISPLAY_INTERVAL_MS = 500; // 表示内容が同じときの再描画周期
+
 int8_t currentThrottle = 0;
 std::vector<ToioCore*> toiocore_list;
+uint32_t lastControlMs = 0;
+
+// 最後に送ったモーター命令。同じ命令を送り直さないために使う
+enum class MotorMode { NONE, DRIVE, SPIN };
+MotorMode lastMotorMode = MotorMode::NONE;
+int8_t lastThrottle = 0;
+int8_t lastSteering = 0;
+
+void sendDrive(int8_t throttle, int8_t steering) {
+  if (lastMotorMode == MotorMode::DRIVE && lastThrottle == throttle && lastSteering == steering) {
+    return;
+  }
+  toiocore->drive(throttle, steering);
+  lastMotorMode = MotorMode::DRIVE;
+  lastThrottle = throttle;
+  lastSteering = steering;
+}
+
+void sendSpin() {
+  if (lastMotorMode == MotorMode::SPIN) {
+    return;
+  }
+  toiocore->controlMotor(true, 100, false, 100);
+  lastMotorMode = MotorMode::SPIN;
+}
 
 // 引数で渡した一定単位ごとに近づける
 void updateCurrentThrottle(int8_t targetThrottle, int8_t step = 1) {
@@ -45,7 +73,22 @@ void updateCurrentThrottle(int8_t targetThrottle, int8_t step = 1) {
   }
 }
 
+// 表示内容が変わったときか、一定時間たったとき（バッテリー表示の更新）だけ再描画する
 void showStatus(const char* status, const char* detail = nullptr) {
+  static const char* lastStatus = nullptr;
+  static const char* lastDetail = nullptr;
+  static uint32_t lastDrawMs = 0;
+  uint32_t now = millis();
+  auto same = [](const char* a, const char* b) {
+    return a == b || (a && b && strcmp(a, b) == 0);
+  };
+  if (same(status, lastStatus) && same(detail, lastDetail) && now - lastDrawMs < DISPLAY_INTERVAL_MS) {
+    return;
+  }
+  lastStatus = status;
+  lastDetail = detail;
+  lastDrawMs = now;
+
   canvas.fillScreen(TFT_BLACK);
   canvas.setTextColor(TFT_WHITE, TFT_BLACK);
   canvas.setCursor(4, 2);
@@ -87,7 +130,7 @@ void runForward() {
   auto data = M5.Imu.getImuData();
   updateCurrentThrottle(70, 30);
   int8_t steering = (int8_t)(-data.accel.x * 40);
-  toiocore->drive(currentThrottle, steering);
+  sendDrive(currentThrottle, steering);
   showStatus("RUNNING", "");
 }
 
@@ -95,23 +138,20 @@ void runBackward() {
   auto data = M5.Imu.getImuData();
   updateCurrentThrottle(-50, 30);
   int8_t steering = (int8_t)(-data.accel.x * 40);
-  toiocore->drive(currentThrottle, steering);
+  sendDrive(currentThrottle, steering);
   showStatus("RUNNING", "Backward");
 }
 
 // 左右のモーターを逆回転させてその場で回転する
 void spinInPlace() {
   currentThrottle = 0;
-  toiocore->controlMotor(true, 100, false, 100);
+  sendSpin();
   showStatus("RUNNING", "Spin");
 }
 
 void loop(void)
 {
   M5.update();
-  buttonBlue.update();
-  buttonRed.update();
-  joystick.update();
   toio.loop();
 
   switch (state) {
@@ -144,13 +184,26 @@ void loop(void)
         showStatus("ERROR", "Disconnected");
         break;
       }
+
+      // 加速・減速の速さがループの回る速さに左右されないよう、一定周期で制御する
+      uint32_t now = millis();
+      if (now - lastControlMs < CONTROL_INTERVAL_MS) {
+        delay(1);
+        break;
+      }
+      lastControlMs = now;
+
+      buttonBlue.update();
+      buttonRed.update();
+      joystick.update();
+
       if (joystick.isPressed()) {
         spinInPlace();
         break;
       }
       if (!buttonBlue.isPressed() && !buttonRed.isPressed()) {
         updateCurrentThrottle(0, 10);
-        toiocore->drive(currentThrottle, 0);
+        sendDrive(currentThrottle, 0);
         showStatus("RUNNING", "Push Button to drive");
         break;
       }
