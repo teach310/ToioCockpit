@@ -29,10 +29,18 @@ public:
     void setHornPressed(bool pressed);
     /// @param arm アームの位置 (0～100)。CONNECTED 以外では使わない
     void setShovel(ShovelState state, int arm);
+    /// @param stick true なら JoyStick で曲がる (STICK)、false なら本体の傾きで曲がる (TILT)
+    void setStickSteering(bool stick);
+    /// @param high true なら速さのギアが HIGH、false なら LOW
+    void setHighGear(bool high);
 
     bool isHornHit(int x, int y) const;
     /// 左下のショベル表示に触れたか。タッチで探し直すのに使う
     bool isShovelHit(int x, int y) const;
+    /// 右下のハンドルの切り方の表示に触れたか。タッチで切り替えるのに使う
+    bool isSteeringHit(int x, int y) const;
+    /// 左のギアの列に触れたか。タッチで速さのギアを切り替えるのに使う
+    bool isGearHit(int x, int y) const;
 
     /// @param force true のときは描き直しの間隔を待たずにすぐ描く
     void draw(bool force = false);
@@ -46,6 +54,7 @@ private:
     void drawBatteries();
     void drawBattery(int x, const char* label, int percent, bool charging);
     void drawShovel();
+    void drawSteering();
 
     M5GFX& _display;
     LGFX_Sprite _canvas;
@@ -62,6 +71,8 @@ private:
     int _toioBattery = -1;
     bool _hornPressed = false;
     ShovelState _shovelState = ShovelState::OFF;
+    bool _stickSteering = false;
+    bool _highGear = false;
     int _shovelArm = -1;
 
     bool _dirty = true;
