@@ -44,6 +44,8 @@ pio run -e shovel -t upload       # shovel に書き込み
 - BLE ペリフェラルとして `ToioShovel` の名前でアドバタイズし、アームの位置（0〜100）を受け取る
 - 画面のボタン（BtnA）: cockpit なしで試すための上げ下げ
 - 電源: ATOM Mate for toio に載せる
+  - 電池の電圧は半分にされて G8 に出ている（ATOM Mate の回路図では ATOM Lite の GPIO33。AtomS3 の同じ位置が G8）
+  - 充電中を知らせる信号は ATOM のピンにつながっていないので、電圧の上がり方で推定している
 
 ## toio ライブラリ（M5StackToio）の注意
 

@@ -17,6 +17,25 @@ constexpr uint16_t ARM_UP_US = 2000;
 constexpr float SERVO_SMOOTH_MS = 80;           // 目標との差がおよそこの時間で縮まる
 constexpr float SERVO_MAX_SPEED_US_PER_MS = 2.5f; // 速さの上限。端から端(1000μs)まで約0.4秒
 
+// ATOM Mate for toio の電池。電圧を100kΩ2本で半分にして、5ピンのピン列の5番目（AtomS3では G8）に出している
+// （ATOM Mate の回路図では ATOM Lite の GPIO33。AtomS3 の同じ位置が G8）
+constexpr uint8_t BATTERY_PIN = 8;
+constexpr uint32_t BATTERY_READ_INTERVAL_MS = 1000;
+constexpr float BATTERY_SMOOTHING = 0.2f; // サーボが動くと電圧が揺れるので、読むたびに少しずつならす
+// 5段階の境目 (mV)。リチウムポリマー電池のおおよその値。これらより低ければレベル1
+constexpr int BATTERY_LEVEL_MV[] = {3650, 3750, 3850, 4000}; // この電圧以上でレベル 2, 3, 4, 5
+// 充電中の推定。充電を知らせる信号はATOMのピンにつながっていないので、電圧の上がり方で決める
+constexpr uint32_t CHARGE_CHECK_INTERVAL_MS = 20000; // この間隔で電圧を比べる
+constexpr int CHARGE_RISE_MV = 15;                   // これだけ上がっていたら充電中
+constexpr int CHARGE_FALL_MV = 15;                   // これだけ下がっていたら充電していない
+constexpr int CHARGE_FULL_MV = 4150;                 // これ以上で安定していたら充電中（満充電近く）
+
+float batteryMv = 0;
+bool charging = false;
+uint32_t lastBatteryReadMs = 0;
+uint32_t lastChargeCheckMs = 0;
+float lastChargeCheckMv = 0;
+
 Servo servo;
 float currentPulseUs = ARM_DOWN_US;
 uint16_t writtenPulseUs = ARM_DOWN_US;
@@ -94,19 +113,116 @@ void updateServo()
     }
 }
 
-// 接続状態とアームの位置が変わったときだけ描き直す
+// 1～5。電圧を読めていなければ 0
+int batteryLevel()
+{
+    if (batteryMv <= 0)
+    {
+        return 0;
+    }
+    int level = 1;
+    for (int threshold : BATTERY_LEVEL_MV)
+    {
+        if (batteryMv >= threshold)
+        {
+            level++;
+        }
+    }
+    return level;
+}
+
+void updateBattery()
+{
+    uint32_t now = millis();
+    if (lastBatteryReadMs != 0 && now - lastBatteryReadMs < BATTERY_READ_INTERVAL_MS)
+    {
+        return;
+    }
+    lastBatteryReadMs = now;
+
+    float mv = analogReadMilliVolts(BATTERY_PIN) * 2.0f; // 半分にされているので2倍に戻す
+    batteryMv = batteryMv <= 0 ? mv : batteryMv + (mv - batteryMv) * BATTERY_SMOOTHING;
+
+    if (lastChargeCheckMs == 0)
+    {
+        lastChargeCheckMs = now;
+        lastChargeCheckMv = batteryMv;
+        return;
+    }
+    if (now - lastChargeCheckMs < CHARGE_CHECK_INTERVAL_MS)
+    {
+        return;
+    }
+    float diff = batteryMv - lastChargeCheckMv;
+    if (diff >= CHARGE_RISE_MV || batteryMv >= CHARGE_FULL_MV)
+    {
+        charging = true;
+    }
+    else if (diff <= -CHARGE_FALL_MV)
+    {
+        charging = false;
+    }
+    lastChargeCheckMs = now;
+    lastChargeCheckMv = batteryMv;
+}
+
+// 縦長の電池アイコン。下から5段階で塗る。充電中は水色にして稲妻を重ねる
+void drawBattery(int x, int y, int level, bool isCharging, int mv)
+{
+    constexpr int W = 20;
+    constexpr int H = 50;
+    constexpr int SEG_GAP = 2;
+    constexpr int SEG_H = (H - 4 - SEG_GAP * 4) / 5;
+    auto& d = M5.Display;
+
+    d.fillRect(x + W / 2 - 4, y - 3, 8, 3, TFT_DARKGREY);
+    d.drawRoundRect(x, y, W, H, 3, TFT_DARKGREY);
+    uint16_t color = isCharging ? TFT_CYAN : level >= 3 ? TFT_GREEN : level == 2 ? TFT_YELLOW : TFT_RED;
+    for (int i = 0; i < level; i++)
+    {
+        int segY = y + H - 2 - (i + 1) * SEG_H - i * SEG_GAP;
+        d.fillRect(x + 2, segY, W - 4, SEG_H, color);
+    }
+    if (isCharging)
+    {
+        int cx = x + W / 2;
+        int cy = y + H / 2;
+        d.fillTriangle(cx + 2, cy - 12, cx - 5, cy + 2, cx, cy + 2, TFT_WHITE);
+        d.fillTriangle(cx - 2, cy + 12, cx + 5, cy - 2, cx, cy - 2, TFT_WHITE);
+    }
+
+    d.setTextSize(1);
+    d.setTextColor(TFT_WHITE);
+    d.setTextDatum(top_center);
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d.%dV", mv / 1000, (mv % 1000) / 100);
+    d.drawString(mv > 0 ? buf : "--", x + W / 2, y + H + 6);
+}
+
+// 接続状態・アームの位置・電池の表示が変わったときだけ描き直す
 void updateDisplay()
 {
     static int lastArm = -1;
     static int lastConnected = -1;
+    static int lastLevel = -1;
+    static int lastCharging = -1;
+    static int lastMv100 = -1;
     int arm = targetArm;
     int isConnected = connected ? 1 : 0;
-    if (arm == lastArm && isConnected == lastConnected)
+    int level = batteryLevel();
+    int isCharging = charging ? 1 : 0;
+    int mv = static_cast<int>(batteryMv);
+    int mv100 = mv / 100; // 0.1V 単位で変わったときだけ描き直す
+    if (arm == lastArm && isConnected == lastConnected && level == lastLevel && isCharging == lastCharging &&
+        mv100 == lastMv100)
     {
         return;
     }
     lastArm = arm;
     lastConnected = isConnected;
+    lastLevel = level;
+    lastCharging = isCharging;
+    lastMv100 = mv100;
 
     auto& d = M5.Display;
     d.fillScreen(TFT_BLACK);
@@ -130,6 +246,9 @@ void updateDisplay()
 
     d.setTextColor(TFT_WHITE);
     d.drawString(String("ARM ") + arm, d.width() / 2, BAR_TOP + BAR_H + 6);
+
+    // アームのバーの右側に電池
+    drawBattery(96, BAR_TOP + 4, level, isCharging, mv);
 }
 
 void setup()
@@ -137,6 +256,7 @@ void setup()
     auto cfg = M5.config();
     M5.begin(cfg);
 
+    pinMode(BATTERY_PIN, INPUT);
     servo.attach(SERVO_PIN, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
     servo.writeMicroseconds(writtenPulseUs);
     lastUpdateUs = micros();
@@ -156,6 +276,7 @@ void loop()
     }
 
     updateServo();
+    updateBattery();
     updateDisplay();
     delay(1);
 }
