@@ -69,31 +69,14 @@ uint8_t BACKUP_SOUND[] = {
   40, 128, 0,
 };
 
-// 衝突音: 低い音へ一気に下がる「ドガッ」。1回だけ鳴らす
-uint8_t CRASH_SOUND[] = {
-  0x03, 1, 6,
-  2, 57, 255,
-  2, 45, 255,
-  2, 52, 255,
-  2, 40, 255,
-  3, 47, 255,
-  3, 36, 255,
-};
-constexpr uint32_t CRASH_SOUND_MS = 140;       // 衝突音の長さ。この間はバック音で上書きしない
-constexpr uint32_t CRASH_COOLDOWN_MS = 3000;   // 衝突音を鳴らしすぎないよう、次に鳴らせるまでの間隔
-// 衝突検出のしきい値(1～10)。大きいほど強くぶつからないと検出しない。toioの初期値7では走行中の衝突をほぼ拾わないので下げる
-constexpr uint8_t CRASH_THRESHOLD = 3;
-
-constexpr uint32_t JOYSTICK_LED_COLOR = 0x00C8FF; // 押し込んでいる間のJoyStickのライトの色
+// 押し込んでいる間のJoyStickのライトの色。最大だと眩しいので、水色のまま1/10くらいの明るさにする
+constexpr uint32_t JOYSTICK_LED_COLOR = 0x001419;
 
 // 最後に鳴らした音。同じ音を送り直さないために使う
-enum class SoundMode { NONE, HORN, BACKUP, CRASH };
+enum class SoundMode { NONE, HORN, BACKUP };
 SoundMode lastSoundMode = SoundMode::NONE;
 
-// toioのモーション検出で衝突が来たら立てる。鳴らすかどうかは制御周期の中で決める
-bool crashDetected = false;
 bool joystickLedOn = false;
-uint32_t lastCrashMs = 0;
 
 void updateSound(SoundMode mode) {
   if (mode == lastSoundMode) {
@@ -105,9 +88,6 @@ void updateSound(SoundMode mode) {
       break;
     case SoundMode::BACKUP:
       toiocore->playSoundRaw(BACKUP_SOUND, sizeof(BACKUP_SOUND));
-      break;
-    case SoundMode::CRASH:
-      toiocore->playSoundRaw(CRASH_SOUND, sizeof(CRASH_SOUND));
       break;
     case SoundMode::NONE:
       toiocore->stopSound();
@@ -250,15 +230,7 @@ void startRunning() {
   lastMotorMode = MotorMode::NONE;
   lastSoundMode = SoundMode::NONE;
   lastControlMs = 0;
-  crashDetected = false;
-  toiocore->setClashThreshold(CRASH_THRESHOLD);
-  // 接続ごとに登録し直す。コールバックは loop() の toiocore->_loop() の中で呼ばれる
-  toiocore->onMotion([](ToioCoreMotionData motion) {
-    if (motion.clash) {
-      crashDetected = true;
-    }
-  });
-  // toioの電池残量は最初に1回読み、あとは変化の通知で受け取る
+  // toioの電池残量は最初に1回読み、あとは変化の通知で受け取る。通知は loop() の toiocore->_loop() の中で届く
   dashboard.setToioBattery(toiocore->getBatteryLevel());
   toiocore->onBattery([](uint8_t level) {
     dashboard.setToioBattery(level);
@@ -282,7 +254,7 @@ void loop(void)
 {
   M5.update();
   // toio.loop() は最初のスキャンで見つけたオブジェクトしか回さない。スキャンし直すと
-  // toiocore は別のオブジェクトになり、衝突や電池の通知が届かなくなるので直接回す
+  // toiocore は別のオブジェクトになり、電池残量の通知が届かなくなるので直接回す
   if (toiocore) {
     toiocore->_loop();
   }
@@ -350,21 +322,9 @@ void loop(void)
         dashboard.setGear(Dashboard::Gear::N);
       }
 
-      // 衝突したら衝突音。ただし前回から CRASH_COOLDOWN_MS たつまでと、クラクション中は鳴らさない
-      if (crashDetected) {
-        crashDetected = false;
-        if (!hornTouched && (lastCrashMs == 0 || now - lastCrashMs >= CRASH_COOLDOWN_MS)) {
-          lastCrashMs = now;
-          updateSound(SoundMode::CRASH);
-        }
-      }
-      bool crashPlaying = lastSoundMode == SoundMode::CRASH && now - lastCrashMs < CRASH_SOUND_MS;
-
-      // クラクションボタンを押している間はクラクション。衝突音の最中でなければ、後ろに動いている間はバック音
+      // クラクションボタンを押している間はクラクション。それ以外で後ろに動いている間はバック音
       if (hornTouched) {
         updateSound(SoundMode::HORN);
-      } else if (crashPlaying) {
-        // 衝突音を最後まで鳴らす
       } else if (currentThrottle < 0) {
         updateSound(SoundMode::BACKUP);
       } else {
