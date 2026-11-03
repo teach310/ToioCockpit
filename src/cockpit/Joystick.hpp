@@ -31,6 +31,9 @@ public:
 
     bool begin(const Config& config);
     void update();
+    /// 今のX軸・Y軸の値を中心にする。スティックに触れていない起動直後に呼ぶ
+    /// @param samples 平均をとる回数
+    void calibrateCenter(int samples = 16);
 
     /// @return X軸の正規化値 (-100～100)
     int x() const { return _x; }

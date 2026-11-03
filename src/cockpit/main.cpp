@@ -45,7 +45,10 @@ constexpr int8_t BACKWARD_THROTTLE = -50;
 constexpr int8_t ACCEL_STEP = 30;    // ボタンを押している間の加速
 constexpr int8_t DECEL_STEP = 10;    // ボタンを離したときの減速
 constexpr float STEERING_GAIN = 40;  // 本体の傾き(accel.x)をステアリングに変換する倍率
-constexpr uint8_t SPIN_SPEED = 100;  // その場で回転するときのモーターの速さ
+constexpr uint8_t SPIN_SPEED = 100;  // JoyStickを押し込んだときの、その場で回転する速さ
+// JoyStickを左右に倒したときは、その場でゆっくり回る
+constexpr uint8_t SLOW_SPIN_SPEED = 8; // toioのモーターが回る一番遅い速さ。8未満だと回らない（toio通信仕様）
+constexpr int SLOW_SPIN_DIRECTION = 1;      // 右に倒して左に回るときは -1 にする
 
 int8_t currentThrottle = 0;
 uint32_t lastControlMs = 0;
@@ -65,6 +68,8 @@ AppState wakeState = AppState::SCANNING; // スリープから起きたときに
 enum class MotorMode { NONE, DRIVE, SPIN };
 MotorMode lastMotorMode = MotorMode::NONE;
 int8_t lastThrottle = 0;
+bool lastSpinClockwise = true;
+uint8_t lastSpinSpeed = 0;
 int8_t lastSteering = 0;
 
 // toioのMIDI再生データ: {0x03, 繰り返し回数(0は無限), 音の数, (長さ[10ms], ノート番号, 音量)...}
@@ -125,12 +130,15 @@ void sendDrive(int8_t throttle, int8_t steering) {
   lastSteering = steering;
 }
 
-void sendSpin() {
-  if (lastMotorMode == MotorMode::SPIN) {
+// clockwise が true なら右回り（左のモーターを前、右を後ろに回す）
+void sendSpin(bool clockwise, uint8_t speed) {
+  if (lastMotorMode == MotorMode::SPIN && lastSpinClockwise == clockwise && lastSpinSpeed == speed) {
     return;
   }
-  toiocore->controlMotor(true, SPIN_SPEED, false, SPIN_SPEED);
+  toiocore->controlMotor(clockwise, speed, !clockwise, speed);
   lastMotorMode = MotorMode::SPIN;
+  lastSpinClockwise = clockwise;
+  lastSpinSpeed = speed;
 }
 
 // 引数で渡した一定単位ごとに近づける
@@ -178,10 +186,12 @@ void setup(void)
   Joystick::Config joyCfg;
   joyCfg.sda = M5.getPin(m5::pin_name_t::port_a_sda);
   joyCfg.scl = M5.getPin(m5::pin_name_t::port_a_scl);
-  joyCfg.yCalibration = {200, 32390, 65380}; // 実測値のキャリブレーション値
+  joyCfg.yCalibration = {200, 32390, 65380}; // 実測値。中心は起動時に測り直す
   joystickAvailable = joystick.begin(joyCfg);
   if (joystickAvailable) {
     joystick.setRgbColor(0);
+    // 中心は個体差やずれがあるので、触れていない起動直後の値を中心にする（ずれていると勝手に回ったりアームが動いたりする）
+    joystick.calibrateCenter();
   }
 
   normalBrightness = M5.Display.getBrightness();
@@ -208,9 +218,9 @@ void driveToward(int8_t targetThrottle) {
 }
 
 // 左右のモーターを逆回転させてその場で回転する
-void spinInPlace() {
+void spinInPlace(bool clockwise, uint8_t speed) {
   currentThrottle = 0;
-  sendSpin();
+  sendSpin(clockwise, speed);
 }
 
 bool isHornButtonTouched() {
@@ -379,14 +389,27 @@ void loop(void)
 
       updateInputs();
 
-      bool spinning = joystick.isPressed();
+      // 斜めに倒したときに回転とアームが両方動かないよう、大きく倒している方の軸だけ使う
+      int rawX = joystickAvailable ? joystick.x() : 0;
+      int rawY = joystickAvailable ? joystick.y() : 0;
+      bool xDominant = abs(rawX) > abs(rawY);
+      int stickX = xDominant ? rawX : 0;
+      int stickY = xDominant ? 0 : rawY;
+
+      // 優先順: 押し込み（速く回る）→ 青・赤ボタン（走る）→ 左右に倒す（ゆっくり回る）→ 止まる
+      // ショベルにつながっている間は、速く回るとアームが振られて危ないので押し込みでは回らない
+      bool spinning = joystick.isPressed() && !shovel.isConnected();
+      bool driving = !spinning && (buttonBlue.isPressed() || buttonRed.isPressed());
+      bool slowSpinning = !spinning && !driving && stickX != 0;
       updateJoystickLed(spinning);
       if (spinning) {
-        spinInPlace();
+        spinInPlace(true, SPIN_SPEED);
       } else if (buttonBlue.isPressed()) {
         driveToward(FORWARD_THROTTLE);
       } else if (buttonRed.isPressed()) {
         driveToward(BACKWARD_THROTTLE);
+      } else if (slowSpinning) {
+        spinInPlace(stickX * SLOW_SPIN_DIRECTION > 0, SLOW_SPIN_SPEED);
       } else {
         updateCurrentThrottle(0, DECEL_STEP);
         sendDrive(currentThrottle, 0);
@@ -401,14 +424,13 @@ void loop(void)
         shovel.startSearch();
       }
       shovelAreaWasTouched = shovelAreaTouched;
-      bool toioStopped = !spinning && currentThrottle == 0;
+      bool toioStopped = !spinning && !slowSpinning && currentThrottle == 0;
       shovel.update(toioStopped);
       bool shovelConnected = shovel.isConnected();
       if (shovelConnected && !shovelWasConnected && shovel.arm() >= 0) {
         armPosition = shovel.arm(); // つないだ瞬間にアームが動かないよう、今の位置から始める
       }
       shovelWasConnected = shovelConnected;
-      int stickY = joystickAvailable ? joystick.y() : 0;
       if (shovelConnected) {
         armPosition += stickY / 100.0f * ARM_STICK_SPEED * ARM_STICK_DIRECTION;
         armPosition = constrain(armPosition, 0.0f, 100.0f);
@@ -422,7 +444,7 @@ void loop(void)
       bool hornTouched = isHornButtonTouched();
       dashboard.setHornPressed(hornTouched);
       dashboard.setSpeed(currentThrottle);
-      if (spinning) {
+      if (spinning || slowSpinning) {
         dashboard.setGear(Dashboard::Gear::S);
       } else if (currentThrottle > 0) {
         dashboard.setGear(Dashboard::Gear::D);
@@ -443,7 +465,7 @@ void loop(void)
 
       // 動いている間や、ボタン・画面に触れている間は操作中とみなす
       bool active = spinning || buttonBlue.isPressed() || buttonRed.isPressed() ||
-                    M5.Touch.getDetail().isPressed() || currentThrottle != 0 || stickY != 0;
+                    M5.Touch.getDetail().isPressed() || currentThrottle != 0 || stickX != 0 || stickY != 0;
       if (active) {
         markActivity();
       } else if (checkIdle()) {
