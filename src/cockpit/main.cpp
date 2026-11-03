@@ -32,7 +32,7 @@ AppState state = AppState::SCANNING;
 constexpr uint32_t CONTROL_INTERVAL_MS = 50;  // 入力読み取りとモーター制御の周期
 constexpr uint32_t CORE_BATTERY_INTERVAL_MS = 2000; // CoreS3の電池残量を読む周期
 constexpr uint32_t RETRY_INTERVAL_MS = 5000;  // ERRORから自動で再試行するまでの時間
-constexpr uint32_t DIM_AFTER_MS = 30 * 1000;     // 触らないまま、この時間たったら画面を暗くする
+constexpr uint32_t DIM_AFTER_MS = 90 * 1000;     // 触らないまま、この時間たったら画面を暗くする
 constexpr uint32_t SLEEP_AFTER_MS = 3 * 60 * 1000; // 触らないまま、この時間たったらtoioとの接続を切って画面を消す
 constexpr uint8_t DIM_BRIGHTNESS = 20;
 constexpr uint8_t MAX_AUTO_RETRIES = 3;       // 放置時の電池消費を抑えるため、自動再試行は回数を限る
@@ -86,6 +86,7 @@ constexpr float ARM_STICK_SPEED = 10.0f; // 一番倒したときに CONTROL_INT
 constexpr int ARM_STICK_DIRECTION = 1;  // 上に倒して下がるときは -1 にする
 float armPosition = 0;                  // 0 = 一番下, 100 = 一番上
 bool shovelWasConnected = false;
+bool shovelAreaWasTouched = false; // 左下のショベル表示を、前回の制御周期で押していたか
 
 // 押し込んでいる間のJoyStickのライトの色。最大だと眩しいので、水色のまま1/10くらいの明るさにする
 constexpr uint32_t JOYSTICK_LED_COLOR = 0x001419;
@@ -235,7 +236,7 @@ void enterError(const char* detail, AppState nextState) {
   updateJoystickLed(false);
   // toioのスキャンとぶつからないよう、ショベルを探すのもやめる
   shovel.stop();
-  dashboard.setShovel(false, -1);
+  dashboard.setShovel(Dashboard::ShovelState::OFF, -1);
   dashboard.setRunning(false);
   dashboard.setGear(Dashboard::Gear::P);
   dashboard.setSpeed(0);
@@ -272,7 +273,7 @@ void enterSleep(AppState nextState) {
     toiocore->disconnect();
   }
   shovel.stop();
-  dashboard.setShovel(false, -1);
+  dashboard.setShovel(Dashboard::ShovelState::OFF, -1);
   updateJoystickLed(false);
   dashboard.setRunning(false);
   dashboard.setGear(Dashboard::Gear::P);
@@ -316,6 +317,7 @@ void startRunning() {
   dashboard.setGear(Dashboard::Gear::N);
   showStatus("RUNNING", "", Dashboard::Tone::OK);
   markActivity();
+  shovel.startSearch();
   state = AppState::RUNNING;
 }
 
@@ -390,7 +392,15 @@ void loop(void)
         sendDrive(currentThrottle, 0);
       }
 
-      // ショベル。見つかるまでは裏で探す。接続は数秒止まることがあるので、toioが止まっているときだけ
+      // ショベル。使わない日も多いので、toioとつないだときと左下をタッチしたときに数回だけ探す
+      // 接続は数秒止まることがあるので、toioが止まっているときだけ
+      // wasPressed() は M5.update() ごとに消え、50msごとの制御周期では見逃すので、押しているかの変化で見る
+      auto touch = M5.Touch.getDetail();
+      bool shovelAreaTouched = touch.isPressed() && dashboard.isShovelHit(touch.x, touch.y);
+      if (shovelAreaTouched && !shovelAreaWasTouched) {
+        shovel.startSearch();
+      }
+      shovelAreaWasTouched = shovelAreaTouched;
       bool toioStopped = !spinning && currentThrottle == 0;
       shovel.update(toioStopped);
       bool shovelConnected = shovel.isConnected();
@@ -404,7 +414,10 @@ void loop(void)
         armPosition = constrain(armPosition, 0.0f, 100.0f);
         shovel.setArm(static_cast<uint8_t>(armPosition + 0.5f));
       }
-      dashboard.setShovel(shovelConnected, shovelConnected ? static_cast<int>(armPosition + 0.5f) : -1);
+      Dashboard::ShovelState shovelState = shovelConnected     ? Dashboard::ShovelState::CONNECTED
+                                           : shovel.isSearching() ? Dashboard::ShovelState::SEARCHING
+                                                                  : Dashboard::ShovelState::OFF;
+      dashboard.setShovel(shovelState, static_cast<int>(armPosition + 0.5f));
 
       bool hornTouched = isHornButtonTouched();
       dashboard.setHornPressed(hornTouched);

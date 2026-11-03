@@ -32,7 +32,7 @@ pio run -e shovel -t upload       # shovel に書き込み
 ## cockpit（CoreS3）の入出力
 
 - Port A (I2C): M5Unit-Joystick2。押し込みでその場回転、押し込み中はライトが付く。上下に倒すとショベルのアームが動く（離すとその位置で止まる）
-- shovel とは `ShovelLink` で BLE 接続する。RUNNING 中だけ裏で探し、接続は toio が止まっているときだけ行う（接続中は最大数秒止まるため）
+- shovel とは `ShovelLink` で BLE 接続する。shovel は使わない日も多いので探し続けない。toio とつないだとき、メーター左下の SHOVEL 表示をタッチしたとき、途中で切れたときに3回だけ探す。接続は toio が止まっているときだけ行う（接続中は最大数秒止まるため）
 - Port B: GPIO 8 = 青ボタン（前進）、GPIO 9 = 赤ボタン（後退）
 - 本体の傾き（IMU の accel.x）でハンドル
 - タッチパネル: メーター中央の HORN ボタン

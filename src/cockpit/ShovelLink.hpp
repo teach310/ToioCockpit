@@ -6,16 +6,21 @@
 
 // shovel (AtomS3) との BLE 接続を受け持つ
 // 見つからなくても toio の操作は続けられるよう、探すのも接続するのも update() の中で少しずつ進める
+// shovel を使わない日も多いので、探し続けずに startSearch() のたびに決まった回数だけ探す
 class ShovelLink
 {
 public:
-    /// 呼ぶたびに、見つかっていなければ探し、見つかっていればつなぐ
+    /// 決まった回数だけ探し始める。toio とつないだときや、画面でタッチされたときに呼ぶ
+    void startSearch();
+    /// 呼ぶたびに、探している途中なら探し、見つかっていればつなぐ
     /// @param canConnect 接続は最大数秒止まるので、toio が止まっているときだけ true にする
     void update(bool canConnect);
     /// 探すのをやめて切断する。toio のスキャン前やスリープ前に呼ぶ
     void stop();
 
     bool isConnected();
+    /// 探している途中か、見つけてつなぐのを待っているか
+    bool isSearching() const;
 
     /// アームの位置 (0～100) を送る。前回と同じ値なら送らない
     void setArm(uint8_t arm);
@@ -44,6 +49,7 @@ private:
     NimBLEClient* _client = nullptr;
     NimBLERemoteCharacteristic* _armChar = nullptr;
     uint32_t _lastScanMs = 0;
+    uint8_t _remainingScans = 0;
     int _lastSentArm = -1;
 };
 

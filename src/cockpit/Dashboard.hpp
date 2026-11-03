@@ -9,6 +9,7 @@ class Dashboard
 {
 public:
     enum class Gear { P, R, N, D, S };
+    enum class ShovelState { OFF, SEARCHING, CONNECTED };
     // ステータス表示の色
     enum class Tone { INFO, OK, WARN, ERROR };
 
@@ -26,10 +27,12 @@ public:
     /// @param percent 0未満は不明
     void setToioBattery(int percent);
     void setHornPressed(bool pressed);
-    /// @param arm アームの位置 (0～100)。つながっていないときは -1
-    void setShovel(bool connected, int arm);
+    /// @param arm アームの位置 (0～100)。CONNECTED 以外では使わない
+    void setShovel(ShovelState state, int arm);
 
     bool isHornHit(int x, int y) const;
+    /// 左下のショベル表示に触れたか。タッチで探し直すのに使う
+    bool isShovelHit(int x, int y) const;
 
     /// @param force true のときは描き直しの間隔を待たずにすぐ描く
     void draw(bool force = false);
@@ -58,7 +61,7 @@ private:
     bool _coreCharging = false;
     int _toioBattery = -1;
     bool _hornPressed = false;
-    bool _shovelConnected = false;
+    ShovelState _shovelState = ShovelState::OFF;
     int _shovelArm = -1;
 
     bool _dirty = true;
