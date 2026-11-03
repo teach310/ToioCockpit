@@ -41,6 +41,9 @@ constexpr int8_t DECEL_STEP = 10;    // ボタンを離したときの減速
 constexpr float STEERING_GAIN = 40;  // 本体の傾き(accel.x)をステアリングに変換する倍率
 constexpr uint8_t SPIN_SPEED = 100;  // その場で回転するときのモーターの速さ
 
+constexpr int STATUS_HEIGHT = 40;      // 画面上部のステータス表示の高さ
+constexpr int HORN_BUTTON_RADIUS = 70; // 画面中央のクラクションボタンの半径
+
 int8_t currentThrottle = 0;
 uint32_t lastControlMs = 0;
 
@@ -72,6 +75,7 @@ uint8_t BACKUP_SOUND[] = {
 // 最後に鳴らした音。同じ音を送り直さないために使う
 enum class SoundMode { NONE, HORN, BACKUP };
 SoundMode lastSoundMode = SoundMode::NONE;
+bool hornButtonPressed = false; // 画面のクラクションボタンを押した見た目になっているか
 
 void updateSound(SoundMode mode) {
   if (mode == lastSoundMode) {
@@ -174,7 +178,7 @@ void setup(void)
   joystickAvailable = joystick.begin(joyCfg);
 
   dsp.setTextSize(2);
-  canvas.createSprite(dsp.width(), 40);
+  canvas.createSprite(dsp.width(), STATUS_HEIGHT);
   canvas.setTextSize(2);
 
   // JoyStickがなくてもボタンで走れるので、知らせるだけで先に進む
@@ -204,12 +208,44 @@ void spinInPlace() {
   showStatus("RUNNING", "Spin");
 }
 
+// 画面中央のクラクションボタン。上のステータス表示を避けて残りの真ん中に置く
+int hornButtonX() { return dsp.width() / 2; }
+int hornButtonY() { return STATUS_HEIGHT + (dsp.height() - STATUS_HEIGHT) / 2; }
+
+// 押されているときは色を変える
+void drawHornButton(bool pressed) {
+  uint16_t color = pressed ? TFT_ORANGE : TFT_DARKGREY;
+  dsp.fillCircle(hornButtonX(), hornButtonY(), HORN_BUTTON_RADIUS, color);
+  dsp.drawCircle(hornButtonX(), hornButtonY(), HORN_BUTTON_RADIUS, TFT_WHITE);
+  dsp.setTextColor(TFT_WHITE, color);
+  dsp.setTextDatum(middle_center);
+  dsp.setTextSize(3);
+  dsp.drawString("HORN", hornButtonX(), hornButtonY());
+  dsp.setTextSize(2);
+  dsp.setTextDatum(top_left);
+}
+
+void clearHornButton() {
+  dsp.fillRect(0, STATUS_HEIGHT, dsp.width(), dsp.height() - STATUS_HEIGHT, TFT_BLACK);
+}
+
+bool isHornButtonTouched() {
+  auto touch = M5.Touch.getDetail();
+  if (!touch.isPressed()) {
+    return false;
+  }
+  int dx = touch.x - hornButtonX();
+  int dy = touch.y - hornButtonY();
+  return dx * dx + dy * dy <= HORN_BUTTON_RADIUS * HORN_BUTTON_RADIUS;
+}
+
 // ERRORにして、ボタンを押すか一定時間たったら nextState からやり直す
 // 自動再試行を使い切ったあとは、ボタンを押したときだけやり直す
 void enterError(const char* detail, AppState nextState) {
   state = AppState::ERROR;
   retryState = nextState;
   errorStartMs = millis();
+  clearHornButton();
   showStatus("ERROR", autoRetryCount < MAX_AUTO_RETRIES ? detail : "Push Button to retry");
 }
 
@@ -220,6 +256,8 @@ void startRunning() {
   lastMotorMode = MotorMode::NONE;
   lastSoundMode = SoundMode::NONE;
   lastControlMs = 0;
+  hornButtonPressed = false;
+  drawHornButton(false);
   state = AppState::RUNNING;
 }
 
@@ -285,8 +323,14 @@ void loop(void)
         showStatus("RUNNING", "Push Button to drive");
       }
 
-      // 画面に触れている間はクラクション。それ以外で後ろに動いている間はバック音
-      if (M5.Touch.getDetail().isPressed()) {
+      bool hornTouched = isHornButtonTouched();
+      if (hornTouched != hornButtonPressed) {
+        drawHornButton(hornTouched);
+        hornButtonPressed = hornTouched;
+      }
+
+      // クラクションボタンを押している間はクラクション。それ以外で後ろに動いている間はバック音
+      if (hornTouched) {
         updateSound(SoundMode::HORN);
       } else if (currentThrottle < 0) {
         updateSound(SoundMode::BACKUP);
