@@ -3,8 +3,10 @@
 #include "GpioButton.hpp"
 #include "Joystick.hpp"
 #include "Dashboard.hpp"
+#include "ShovelLink.hpp"
 
 Dashboard dashboard(M5.Display);
+ShovelLink shovel;
 
 constexpr uint8_t BUTTON_BLUE_PIN = 8; // Port B
 constexpr uint8_t BUTTON_RED_PIN = 9;  // Port B
@@ -78,6 +80,12 @@ uint8_t BACKUP_SOUND[] = {
   40, 76, 160,
   40, 128, 0,
 };
+
+// ショベルのアーム。JoyStickを上下に倒している間、倒した量に応じて動く（離すとその位置で止まる）
+constexpr float ARM_STICK_SPEED = 10.0f; // 一番倒したときに CONTROL_INTERVAL_MS ごとに動く量。0から100まで約0.5秒
+constexpr int ARM_STICK_DIRECTION = 1;  // 上に倒して下がるときは -1 にする
+float armPosition = 0;                  // 0 = 一番下, 100 = 一番上
+bool shovelWasConnected = false;
 
 // 押し込んでいる間のJoyStickのライトの色。最大だと眩しいので、水色のまま1/10くらいの明るさにする
 constexpr uint32_t JOYSTICK_LED_COLOR = 0x001419;
@@ -225,6 +233,9 @@ void enterError(const char* detail, AppState nextState) {
   retryState = nextState;
   errorStartMs = millis();
   updateJoystickLed(false);
+  // toioのスキャンとぶつからないよう、ショベルを探すのもやめる
+  shovel.stop();
+  dashboard.setShovel(false, -1);
   dashboard.setRunning(false);
   dashboard.setGear(Dashboard::Gear::P);
   dashboard.setSpeed(0);
@@ -260,6 +271,8 @@ void enterSleep(AppState nextState) {
     toiocore->drive(0, 0);
     toiocore->disconnect();
   }
+  shovel.stop();
+  dashboard.setShovel(false, -1);
   updateJoystickLed(false);
   dashboard.setRunning(false);
   dashboard.setGear(Dashboard::Gear::P);
@@ -377,6 +390,22 @@ void loop(void)
         sendDrive(currentThrottle, 0);
       }
 
+      // ショベル。見つかるまでは裏で探す。接続は数秒止まることがあるので、toioが止まっているときだけ
+      bool toioStopped = !spinning && currentThrottle == 0;
+      shovel.update(toioStopped);
+      bool shovelConnected = shovel.isConnected();
+      if (shovelConnected && !shovelWasConnected && shovel.arm() >= 0) {
+        armPosition = shovel.arm(); // つないだ瞬間にアームが動かないよう、今の位置から始める
+      }
+      shovelWasConnected = shovelConnected;
+      int stickY = joystickAvailable ? joystick.y() : 0;
+      if (shovelConnected) {
+        armPosition += stickY / 100.0f * ARM_STICK_SPEED * ARM_STICK_DIRECTION;
+        armPosition = constrain(armPosition, 0.0f, 100.0f);
+        shovel.setArm(static_cast<uint8_t>(armPosition + 0.5f));
+      }
+      dashboard.setShovel(shovelConnected, shovelConnected ? static_cast<int>(armPosition + 0.5f) : -1);
+
       bool hornTouched = isHornButtonTouched();
       dashboard.setHornPressed(hornTouched);
       dashboard.setSpeed(currentThrottle);
@@ -401,7 +430,7 @@ void loop(void)
 
       // 動いている間や、ボタン・画面に触れている間は操作中とみなす
       bool active = spinning || buttonBlue.isPressed() || buttonRed.isPressed() ||
-                    M5.Touch.getDetail().isPressed() || currentThrottle != 0;
+                    M5.Touch.getDetail().isPressed() || currentThrottle != 0 || stickY != 0;
       if (active) {
         markActivity();
       } else if (checkIdle()) {

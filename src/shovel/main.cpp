@@ -12,13 +12,15 @@ constexpr uint16_t SERVO_PULSE_MAX_US = 2500;
 constexpr uint16_t ARM_DOWN_US = 1000;
 constexpr uint16_t ARM_UP_US = 2000;
 
-// 急に動かすとtoioが揺れるので、少しずつ目標に近づける
-constexpr uint32_t SERVO_STEP_INTERVAL_MS = 10;
-constexpr uint16_t SERVO_STEP_US = 10; // SERVO_STEP_INTERVAL_MS ごとに動かす量。端から端まで約1秒
+// 目標の位置は cockpit から50msごとに少しずつ届く。そのまま追うと届くたびに止まってギクシャクするので、
+// 目標との差に応じてなめらかに近づける（一次遅れ）。速すぎてtoioが揺れないよう、速さの上限も付ける
+constexpr float SERVO_SMOOTH_MS = 80;           // 目標との差がおよそこの時間で縮まる
+constexpr float SERVO_MAX_SPEED_US_PER_MS = 2.5f; // 速さの上限。端から端(1000μs)まで約0.4秒
 
 Servo servo;
-uint16_t currentPulseUs = ARM_DOWN_US;
-uint32_t lastStepMs = 0;
+float currentPulseUs = ARM_DOWN_US;
+uint16_t writtenPulseUs = ARM_DOWN_US;
+uint32_t lastUpdateUs = 0;
 
 // BLE のコールバックは別のタスクから呼ばれるので volatile にする
 volatile uint8_t targetArm = ShovelProtocol::ARM_MIN;
@@ -72,30 +74,24 @@ void setupBle()
     advertising->start();
 }
 
-// 目標のパルス幅に少しずつ近づける
+// 目標のパルス幅になめらかに近づける。経過時間で動かす量を決めるので、ループの速さに左右されない
 void updateServo()
 {
-    uint32_t now = millis();
-    if (now - lastStepMs < SERVO_STEP_INTERVAL_MS)
-    {
-        return;
-    }
-    lastStepMs = now;
+    uint32_t nowUs = micros();
+    float dtMs = (nowUs - lastUpdateUs) / 1000.0f;
+    lastUpdateUs = nowUs;
 
-    uint16_t target = armToPulse(targetArm);
-    if (currentPulseUs == target)
+    float diff = armToPulse(targetArm) - currentPulseUs;
+    float step = diff * min(1.0f, dtMs / SERVO_SMOOTH_MS);
+    float maxStep = SERVO_MAX_SPEED_US_PER_MS * dtMs;
+    currentPulseUs += constrain(step, -maxStep, maxStep);
+
+    uint16_t pulse = static_cast<uint16_t>(currentPulseUs + 0.5f);
+    if (pulse != writtenPulseUs)
     {
-        return;
+        servo.writeMicroseconds(pulse);
+        writtenPulseUs = pulse;
     }
-    if (currentPulseUs < target)
-    {
-        currentPulseUs = min<uint16_t>(currentPulseUs + SERVO_STEP_US, target);
-    }
-    else
-    {
-        currentPulseUs = max<uint16_t>(currentPulseUs - SERVO_STEP_US, target);
-    }
-    servo.writeMicroseconds(currentPulseUs);
 }
 
 // 接続状態とアームの位置が変わったときだけ描き直す
@@ -142,7 +138,8 @@ void setup()
     M5.begin(cfg);
 
     servo.attach(SERVO_PIN, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
-    servo.writeMicroseconds(currentPulseUs);
+    servo.writeMicroseconds(writtenPulseUs);
+    lastUpdateUs = micros();
 
     setupBle();
 }

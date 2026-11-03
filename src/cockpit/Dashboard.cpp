@@ -139,6 +139,16 @@ void Dashboard::setHornPressed(bool pressed)
     }
 }
 
+void Dashboard::setShovel(bool connected, int arm)
+{
+    if (connected != _shovelConnected || arm != _shovelArm)
+    {
+        _shovelConnected = connected;
+        _shovelArm = arm;
+        _dirty = true;
+    }
+}
+
 bool Dashboard::isHornHit(int x, int y) const
 {
     int dx = x - GAUGE_X;
@@ -175,6 +185,7 @@ void Dashboard::draw(bool force)
     drawSpeedText();
     drawGears();
     drawBatteries();
+    drawShovel();
     _canvas.pushSprite(0, 0);
 }
 
@@ -383,4 +394,34 @@ void Dashboard::drawBattery(int x, const char* label, int percent, bool charging
     {
         _canvas.drawString("--", cx, TOP + H + 24);
     }
+}
+
+// 左下にショベルのつながりとアームの位置を横長のバーで出す
+void Dashboard::drawShovel()
+{
+    constexpr int X = 8;
+    constexpr int W = 72;
+    constexpr int LABEL_Y = 214;
+    constexpr int BAR_Y = 222;
+    constexpr int BAR_H = 10;
+
+    _canvas.setFont(&fonts::Font0);
+    _canvas.setTextDatum(middle_left);
+    _canvas.setTextColor(_shovelConnected ? COLOR_TEXT : COLOR_DIM);
+    _canvas.drawString("SHOVEL", X, LABEL_Y);
+
+    _canvas.drawRoundRect(X, BAR_Y, W, BAR_H, 2, COLOR_DIM);
+    if (!_shovelConnected || _shovelArm < 0)
+    {
+        _canvas.setTextDatum(middle_right);
+        _canvas.drawString("--", X + W, LABEL_Y);
+        return;
+    }
+    int fillW = (W - 4) * min(_shovelArm, 100) / 100;
+    _canvas.fillRect(X + 2, BAR_Y + 2, fillW, BAR_H - 4, COLOR_ORANGE);
+
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d", _shovelArm);
+    _canvas.setTextDatum(middle_right);
+    _canvas.drawString(buf, X + W, LABEL_Y);
 }

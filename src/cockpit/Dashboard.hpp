@@ -26,6 +26,8 @@ public:
     /// @param percent 0未満は不明
     void setToioBattery(int percent);
     void setHornPressed(bool pressed);
+    /// @param arm アームの位置 (0～100)。つながっていないときは -1
+    void setShovel(bool connected, int arm);
 
     bool isHornHit(int x, int y) const;
 
@@ -40,6 +42,7 @@ private:
     void drawGears();
     void drawBatteries();
     void drawBattery(int x, const char* label, int percent, bool charging);
+    void drawShovel();
 
     M5GFX& _display;
     LGFX_Sprite _canvas;
@@ -55,6 +58,8 @@ private:
     bool _coreCharging = false;
     int _toioBattery = -1;
     bool _hornPressed = false;
+    bool _shovelConnected = false;
+    int _shovelArm = -1;
 
     bool _dirty = true;
     uint32_t _lastDrawMs = 0;
