@@ -20,6 +20,22 @@ void Joystick::update()
     _currentPressed = (_unit.get_button_value() == 0);
 }
 
+void Joystick::calibrateCenter(int samples)
+{
+    uint32_t sumX = 0;
+    uint32_t sumY = 0;
+    for (int i = 0; i < samples; i++)
+    {
+        uint16_t x, y;
+        _unit.get_joy_adc_16bits_value_xy(&x, &y);
+        sumX += x;
+        sumY += y;
+        delay(5);
+    }
+    _config.xCalibration.center = sumX / samples;
+    _config.yCalibration.center = sumY / samples;
+}
+
 int Joystick::normalize(uint16_t value, const AxisCalibration& cal) const
 {
     const int min = static_cast<int>(cal.min);
