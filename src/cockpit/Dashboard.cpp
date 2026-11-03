@@ -153,6 +153,36 @@ void Dashboard::setShovel(ShovelState state, int arm)
     }
 }
 
+void Dashboard::setStickSteering(bool stick)
+{
+    if (stick != _stickSteering)
+    {
+        _stickSteering = stick;
+        _dirty = true;
+    }
+}
+
+void Dashboard::setHighGear(bool high)
+{
+    if (high != _highGear)
+    {
+        _highGear = high;
+        _dirty = true;
+    }
+}
+
+bool Dashboard::isGearHit(int x, int y) const
+{
+    // ギアの列。下の SHOVEL 表示 (y >= 200) とは重ねない
+    return x < 50 && y > STATUS_BAR_HEIGHT && y < 200;
+}
+
+bool Dashboard::isSteeringHit(int x, int y) const
+{
+    // 左下の SHOVEL と同じく、表示より少し広めに取る
+    return x >= 230 && y >= 200;
+}
+
 bool Dashboard::isShovelHit(int x, int y) const
 {
     // 表示より少し広めに取って、指で押しやすくする
@@ -196,6 +226,7 @@ void Dashboard::draw(bool force)
     drawGears();
     drawBatteries();
     drawShovel();
+    drawSteering();
     _canvas.pushSprite(0, 0);
 }
 
@@ -336,10 +367,11 @@ void Dashboard::drawGears()
         {Gear::P, "P"}, {Gear::R, "R"}, {Gear::N, "N"}, {Gear::D, "D"}, {Gear::S, "S"},
     };
 
+    // 列の一番上に速さのギアを出す。HIGH は目立つようオレンジ
     _canvas.setFont(&fonts::Font0);
     _canvas.setTextDatum(middle_center);
-    _canvas.setTextColor(COLOR_DIM);
-    _canvas.drawString("GEAR", 24, 44);
+    _canvas.setTextColor(_highGear ? COLOR_ORANGE : COLOR_CYAN);
+    _canvas.drawString(_highGear ? "HIGH" : "LOW", 24, 44);
 
     _canvas.setFont(&fonts::FreeSansBold9pt7b);
     int y = 66;
@@ -437,4 +469,24 @@ void Dashboard::drawShovel()
     snprintf(buf, sizeof(buf), "%d", _shovelArm);
     _canvas.setTextDatum(middle_right);
     _canvas.drawString(buf, X + W, LABEL_Y);
+}
+
+// 右下に、走っているときのハンドルの切り方を出す。タッチで切り替わる
+void Dashboard::drawSteering()
+{
+    constexpr int RIGHT = 312;
+    constexpr int W = 72;
+    constexpr int LABEL_Y = 214;
+    constexpr int BOX_Y = 222;
+    constexpr int BOX_H = 14;
+
+    _canvas.setFont(&fonts::Font0);
+    _canvas.setTextDatum(middle_right);
+    _canvas.setTextColor(COLOR_DIM);
+    _canvas.drawString("STEER", RIGHT, LABEL_Y);
+
+    _canvas.drawRoundRect(RIGHT - W, BOX_Y, W, BOX_H, 3, COLOR_CYAN);
+    _canvas.setTextDatum(middle_center);
+    _canvas.setTextColor(COLOR_CYAN);
+    _canvas.drawString(_stickSteering ? "STICK" : "TILT", RIGHT - W / 2, BOX_Y + BOX_H / 2);
 }

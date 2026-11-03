@@ -4,6 +4,7 @@
 #include "Joystick.hpp"
 #include "Dashboard.hpp"
 #include "ShovelLink.hpp"
+#include <Preferences.h>
 
 Dashboard dashboard(M5.Display);
 ShovelLink shovel;
@@ -40,11 +41,23 @@ constexpr uint8_t SCAN_DURATION_SEC = 3;
 constexpr uint32_t JOYSTICK_WARNING_MS = 2000; // JoyStickが見つからないときの警告の表示時間
 
 // 走行のパラメータ。スロットルの変化量は CONTROL_INTERVAL_MS ごとの値
-constexpr int8_t FORWARD_THROTTLE = 70;
-constexpr int8_t BACKWARD_THROTTLE = -50;
+// 速さのギア。メーター左のギアの列をタッチして切り替え、本体に保存する
+enum class SpeedGear : uint8_t { LO, HI }; // LOW / HIGH は Arduino のマクロとぶつかるので使わない
+SpeedGear speedGear = SpeedGear::LO;
+constexpr int8_t FORWARD_THROTTLE_LOW = 70;
+constexpr int8_t BACKWARD_THROTTLE_LOW = -50;
+constexpr int8_t FORWARD_THROTTLE_HIGH = 100; // toio の drive() で出せる一番速い速さ
+constexpr int8_t BACKWARD_THROTTLE_HIGH = -70; // 後ろ向きは見えにくいので前進より控えめにする
 constexpr int8_t ACCEL_STEP = 30;    // ボタンを押している間の加速
 constexpr int8_t DECEL_STEP = 10;    // ボタンを離したときの減速
-constexpr float STEERING_GAIN = 40;  // 本体の傾き(accel.x)をステアリングに変換する倍率
+// 走っているときのハンドルの切り方。メーター右下の STEER 表示をタッチして切り替え、本体に保存する
+//   TILT : 本体の傾きで曲がる
+//   STICK: JoyStick の左右で曲がる
+enum class SteeringMode : uint8_t { TILT, STICK };
+SteeringMode steeringMode = SteeringMode::TILT;
+Preferences preferences;
+// ステアリングの最大値。TILT は本体を真横(accel.x = 1G)まで傾けたとき、STICK は一番倒したときにこの値になる
+constexpr float STEERING_GAIN = 40;
 constexpr uint8_t SPIN_SPEED = 100;  // JoyStickを押し込んだときの、その場で回転する速さ
 // JoyStickを左右に倒したときは、その場でゆっくり回る
 constexpr uint8_t SLOW_SPIN_SPEED = 8; // toioのモーターが回る一番遅い速さ。8未満だと回らない（toio通信仕様）
@@ -92,6 +105,8 @@ constexpr int ARM_STICK_DIRECTION = 1;  // 上に倒して下がるときは -1 
 float armPosition = 0;                  // 0 = 一番下, 100 = 一番上
 bool shovelWasConnected = false;
 bool shovelAreaWasTouched = false; // 左下のショベル表示を、前回の制御周期で押していたか
+bool steeringAreaWasTouched = false; // 右下の STEER 表示を、前回の制御周期で押していたか
+bool gearAreaWasTouched = false;     // 左のギアの列を、前回の制御周期で押していたか
 
 // 押し込んでいる間のJoyStickのライトの色。最大だと眩しいので、水色のまま1/10くらいの明るさにする
 constexpr uint32_t JOYSTICK_LED_COLOR = 0x001419;
@@ -195,7 +210,12 @@ void setup(void)
   }
 
   normalBrightness = M5.Display.getBrightness();
+  preferences.begin("cockpit");
+  steeringMode = static_cast<SteeringMode>(preferences.getUChar("steer", static_cast<uint8_t>(SteeringMode::TILT)));
   dashboard.begin();
+  dashboard.setStickSteering(steeringMode == SteeringMode::STICK);
+  speedGear = static_cast<SpeedGear>(preferences.getUChar("gear", static_cast<uint8_t>(SpeedGear::LO)));
+  dashboard.setHighGear(speedGear == SpeedGear::HI);
   updateCoreBattery();
 
   // JoyStickがなくてもボタンで走れるので、知らせるだけで先に進む
@@ -208,13 +228,30 @@ void setup(void)
   showStatus("SCANNING", "Searching toio...", Dashboard::Tone::INFO);
 }
 
-// targetThrottle に向けて加速しながら、本体の傾きで曲がる
-void driveToward(int8_t targetThrottle) {
-  M5.Imu.update();
-  auto data = M5.Imu.getImuData();
+// targetThrottle に向けて加速しながら、steeringMode に応じて本体の傾きか JoyStick の左右で曲がる
+void driveToward(int8_t targetThrottle, int stickX) {
   updateCurrentThrottle(targetThrottle, ACCEL_STEP);
-  int8_t steering = (int8_t)(-data.accel.x * STEERING_GAIN);
+  int8_t steering;
+  if (steeringMode == SteeringMode::STICK) {
+    steering = (int8_t)(stickX / 100.0f * STEERING_GAIN); // stickX は -100～100
+  } else {
+    M5.Imu.update();
+    auto data = M5.Imu.getImuData();
+    steering = (int8_t)(-data.accel.x * STEERING_GAIN);
+  }
   sendDrive(currentThrottle, steering);
+}
+
+void toggleSpeedGear() {
+  speedGear = speedGear == SpeedGear::LO ? SpeedGear::HI : SpeedGear::LO;
+  preferences.putUChar("gear", static_cast<uint8_t>(speedGear));
+  dashboard.setHighGear(speedGear == SpeedGear::HI);
+}
+
+void toggleSteeringMode() {
+  steeringMode = steeringMode == SteeringMode::TILT ? SteeringMode::STICK : SteeringMode::TILT;
+  preferences.putUChar("steer", static_cast<uint8_t>(steeringMode));
+  dashboard.setStickSteering(steeringMode == SteeringMode::STICK);
 }
 
 // 左右のモーターを逆回転させてその場で回転する
@@ -405,9 +442,9 @@ void loop(void)
       if (spinning) {
         spinInPlace(true, SPIN_SPEED);
       } else if (buttonBlue.isPressed()) {
-        driveToward(FORWARD_THROTTLE);
+        driveToward(speedGear == SpeedGear::HI ? FORWARD_THROTTLE_HIGH : FORWARD_THROTTLE_LOW, stickX);
       } else if (buttonRed.isPressed()) {
-        driveToward(BACKWARD_THROTTLE);
+        driveToward(speedGear == SpeedGear::HI ? BACKWARD_THROTTLE_HIGH : BACKWARD_THROTTLE_LOW, stickX);
       } else if (slowSpinning) {
         spinInPlace(stickX * SLOW_SPIN_DIRECTION > 0, SLOW_SPIN_SPEED);
       } else {
@@ -424,6 +461,16 @@ void loop(void)
         shovel.startSearch();
       }
       shovelAreaWasTouched = shovelAreaTouched;
+      bool steeringAreaTouched = touch.isPressed() && dashboard.isSteeringHit(touch.x, touch.y);
+      if (steeringAreaTouched && !steeringAreaWasTouched) {
+        toggleSteeringMode();
+      }
+      steeringAreaWasTouched = steeringAreaTouched;
+      bool gearAreaTouched = touch.isPressed() && dashboard.isGearHit(touch.x, touch.y);
+      if (gearAreaTouched && !gearAreaWasTouched) {
+        toggleSpeedGear();
+      }
+      gearAreaWasTouched = gearAreaTouched;
       bool toioStopped = !spinning && !slowSpinning && currentThrottle == 0;
       shovel.update(toioStopped);
       bool shovelConnected = shovel.isConnected();
