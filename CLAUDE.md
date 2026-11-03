@@ -42,7 +42,8 @@ pio run -e shovel -t upload       # shovel に書き込み
 
 - Grove 端子の G2: Servo Kit 180°。`ESP32Servo` でパルス幅 1000〜2000μs を使う
 - BLE ペリフェラルとして `ToioShovel` の名前でアドバタイズし、アームの位置（0〜100）を受け取る
-- 画面のボタン（BtnA）: cockpit なしで試すための上げ下げ
+- 画面のボタン（BtnA）: cockpit なしで試すための上げ下げ。スリープ中は起こすだけ
+- 自動スリープ: cockpit とつながっていない間に触らなければ、90秒で画面を暗くし、3分で画面・アドバタイズ・サーボ信号を止める
 - 電源: ATOM Mate for toio に載せる
   - 電池の電圧は半分にされて G8 に出ている（ATOM Mate の回路図では ATOM Lite の GPIO33。AtomS3 の同じ位置が G8）
   - 充電中を知らせる信号は ATOM のピンにつながっていないので、電圧の上がり方で推定している

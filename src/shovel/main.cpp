@@ -47,6 +47,16 @@ volatile bool connected = false;
 
 NimBLECharacteristic* armCharacteristic = nullptr;
 
+// 自動スリープ。cockpit とつながっていない間に触らなければ、画面を暗くし、さらにスリープに入る
+constexpr uint32_t DIM_AFTER_MS = 90 * 1000;       // 画面を暗くするまで（cockpit と同じ）
+constexpr uint32_t SLEEP_AFTER_MS = 3 * 60 * 1000; // スリープに入るまで
+constexpr uint8_t DIM_BRIGHTNESS = 20;
+uint32_t lastActivityMs = 0;
+bool dimmed = false;
+bool sleeping = false;
+uint8_t normalBrightness = 0;
+bool displayDirty = true; // 起きたときなど、内容が同じでも描き直したいときに立てる
+
 uint16_t armToPulse(uint8_t arm)
 {
     return map(arm, ShovelProtocol::ARM_MIN, ShovelProtocol::ARM_MAX, ARM_DOWN_US, ARM_UP_US);
@@ -70,6 +80,7 @@ class ArmCallbacks : public NimBLECharacteristicCallbacks
         }
         uint8_t arm = value.data()[0];
         targetArm = arm > ShovelProtocol::ARM_MAX ? ShovelProtocol::ARM_MAX : arm;
+        lastActivityMs = millis();
     }
 };
 
@@ -213,11 +224,12 @@ void updateDisplay()
     int isCharging = charging ? 1 : 0;
     int mv = static_cast<int>(batteryMv);
     int mv100 = mv / 100; // 0.1V 単位で変わったときだけ描き直す
-    if (arm == lastArm && isConnected == lastConnected && level == lastLevel && isCharging == lastCharging &&
-        mv100 == lastMv100)
+    if (!displayDirty && arm == lastArm && isConnected == lastConnected && level == lastLevel &&
+        isCharging == lastCharging && mv100 == lastMv100)
     {
         return;
     }
+    displayDirty = false;
     lastArm = arm;
     lastConnected = isConnected;
     lastLevel = level;
@@ -251,6 +263,61 @@ void updateDisplay()
     drawBattery(96, BAR_TOP + 4, level, isCharging, mv);
 }
 
+// 操作があったら呼ぶ。暗くしていた画面を元に戻す
+void markActivity()
+{
+    lastActivityMs = millis();
+    if (dimmed)
+    {
+        M5.Display.setBrightness(normalBrightness);
+        dimmed = false;
+    }
+}
+
+// 放置時の電池消費を抑えるため、画面を消し、見つけてもらうための電波とサーボへの信号を止める
+void enterSleep()
+{
+    NimBLEDevice::getAdvertising()->stop();
+    servo.detach();
+    M5.Display.setBrightness(0);
+    M5.Display.sleep();
+    sleeping = true;
+}
+
+void wakeUp()
+{
+    M5.Display.wakeup();
+    M5.Display.setBrightness(normalBrightness);
+    dimmed = false;
+    servo.attach(SERVO_PIN, SERVO_PULSE_MIN_US, SERVO_PULSE_MAX_US);
+    servo.writeMicroseconds(writtenPulseUs);
+    lastUpdateUs = micros();
+    NimBLEDevice::getAdvertising()->start();
+    displayDirty = true;
+    sleeping = false;
+    markActivity();
+}
+
+// つながっていない間に触らない時間に応じて、画面を暗くし、スリープに入る
+void checkIdle()
+{
+    if (connected)
+    {
+        markActivity(); // つながっている間は操作中とみなし、切れたところから数え始める
+        return;
+    }
+    uint32_t idle = millis() - lastActivityMs;
+    if (!dimmed && idle >= DIM_AFTER_MS)
+    {
+        M5.Display.setBrightness(DIM_BRIGHTNESS);
+        dimmed = true;
+    }
+    if (idle >= SLEEP_AFTER_MS)
+    {
+        enterSleep();
+    }
+}
+
 void setup()
 {
     auto cfg = M5.config();
@@ -262,15 +329,29 @@ void setup()
     lastUpdateUs = micros();
 
     setupBle();
+    normalBrightness = M5.Display.getBrightness();
+    lastActivityMs = millis();
 }
 
 void loop()
 {
     M5.update();
 
+    // スリープ中はボタンだけ見る。起こすために押したときはアームを動かさない
+    if (sleeping)
+    {
+        if (M5.BtnA.wasPressed())
+        {
+            wakeUp();
+        }
+        delay(50);
+        return;
+    }
+
     // cockpit なしでも試せるよう、画面のボタンで上げ下げを切り替える
     if (M5.BtnA.wasPressed())
     {
+        markActivity();
         targetArm = targetArm > ShovelProtocol::ARM_MIN ? ShovelProtocol::ARM_MIN : ShovelProtocol::ARM_MAX;
         armCharacteristic->setValue(static_cast<uint8_t>(targetArm));
     }
@@ -278,5 +359,6 @@ void loop()
     updateServo();
     updateBattery();
     updateDisplay();
+    checkIdle();
     delay(1);
 }
