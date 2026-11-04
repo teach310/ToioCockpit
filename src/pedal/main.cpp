@@ -2,8 +2,10 @@
 
 // 圧力センサーのテスト。BLE は使わず、読んだ値を Serial に出す
 // センサーの出力は ATOM Lite の Grove 端子の白い線 (G32) につなぐ。G32 は無線と一緒でもアナログ入力が読める
+// センサーの電源は Grove の黄色い線 (G26) を HIGH にして出す（約3.3V）。センサーに流れるのは 0.3mA 以下なので GPIO で足りる
 // 注意: G32 に入れてよいのは3V前後まで。Grove の赤い線 (5V) にセンサーをじかにつながないこと
 constexpr uint8_t SENSOR_PIN = 32;
+constexpr uint8_t SENSOR_POWER_PIN = 26;
 constexpr uint32_t PRINT_INTERVAL_MS = 50;
 constexpr int SAMPLES = 8; // 1回の表示ごとに平均をとる回数。値のちらつきを抑える
 
@@ -37,6 +39,8 @@ void setup()
     cfg.serial_baudrate = 115200;
     M5.begin(cfg);
 
+    pinMode(SENSOR_POWER_PIN, OUTPUT);
+    digitalWrite(SENSOR_POWER_PIN, HIGH);
     pinMode(SENSOR_PIN, INPUT);
     analogSetPinAttenuation(SENSOR_PIN, ADC_11db); // 約3.1Vまで読めるようにする
 

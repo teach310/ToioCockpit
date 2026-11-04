@@ -1,0 +1,330 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="bbd" viewBox="0 0 722 545" width="722" height="545" role="img" aria-label="ペダル圧力センサー 配線C（単四電池3本で動かし、G26からセンサーに給電）">
+<style>
+.bbd { --fg:#1c221e; --muted:#5a665f; --line:#cfd6d0; --board:#e9ece8; --panel:#ffffff; --outline:#8b958f;
+  --bb:#f2f0ea; --bb-gap:#e3e0d7; --bb-hole:#3a3a3a; --metal:#a7adb0; --res:#e3cfa6; --res-edge:#b49b6c;
+  --film:#f4f0e2; --area:#2c2c2c; --header:#1f1f1f;
+  --c-black:#1f1f1f; --c-red:#d23a2c; --c-yellow:#d9a800; --c-white:#f7f7f3; --c-orange:#e2611a;
+  --c-blue:#2d5fd3; --c-green:#2f8a57; --c-gray:#5a665f; }
+
+.bbd .svg-text { fill:var(--fg); font-family:"IBM Plex Sans JP","Hiragino Sans","Noto Sans JP",sans-serif; font-size:13px; }
+.bbd .svg-mono { fill:var(--fg); font-family:"JetBrains Mono",Menlo,monospace; font-size:12px; font-weight:700; }
+.bbd .svg-muted { fill:var(--muted); font-family:"IBM Plex Sans JP","Hiragino Sans","Noto Sans JP",sans-serif; font-size:11px; }
+.bbd .unused { opacity:.4; }
+.bbd .board { fill:var(--board); stroke:var(--line); stroke-width:1.5; }
+.bbd .header { fill:var(--header); }
+.bbd .pin { fill:var(--board); stroke:var(--outline); stroke-width:1; }
+.bbd .grove { fill:var(--panel); stroke:var(--outline); stroke-width:1.2; }
+.bbd .dot-black { fill:var(--c-black); stroke:var(--outline); } .bbd .dot-red { fill:var(--c-red); stroke:var(--outline); }
+.bbd .dot-yellow { fill:var(--c-yellow); stroke:var(--outline); } .bbd .dot-white { fill:var(--c-white); stroke:var(--outline); }
+.bbd .bb { fill:var(--bb); stroke:var(--line); stroke-width:1.5; }
+.bbd .bb-gap { fill:var(--bb-gap); } .bbd .bb-hole { fill:var(--bb-hole); }
+.bbd .bb-label { fill:var(--muted); font-family:Menlo,monospace; font-size:9px; }
+.bbd .net { opacity:.22; }
+.bbd .net-black { fill:var(--fg); opacity:.14; } .bbd .net-red { fill:var(--c-red); } .bbd .net-yellow { fill:var(--c-yellow); }
+.bbd .net-white { fill:var(--c-green); } .bbd .net-orange { fill:var(--c-orange); } .bbd .net-blue { fill:var(--c-blue); }
+.bbd .net-green { fill:var(--c-green); } .bbd .net-gray { fill:var(--c-gray); }
+.bbd .outline { fill:none; stroke:var(--outline); stroke-width:7; stroke-linecap:round; stroke-linejoin:round; }
+.bbd .w { fill:none; stroke-width:4.5; stroke-linecap:round; stroke-linejoin:round; }
+.bbd .w-black { stroke:var(--c-black); } .bbd .w-red { stroke:var(--c-red); } .bbd .w-yellow { stroke:var(--c-yellow); }
+.bbd .w-white { stroke:var(--c-white); } .bbd .w-orange { stroke:var(--c-orange); } .bbd .w-blue { stroke:var(--c-blue); }
+.bbd .w-green { stroke:var(--c-green); } .bbd .w-gray { stroke:var(--c-gray); }
+.bbd .pin-end { fill:var(--metal); stroke:var(--outline); stroke-width:1; }
+.bbd .cap { fill:var(--muted); }
+.bbd .lead { stroke:var(--metal); stroke-width:2.5; stroke-linecap:round; }
+.bbd .res { fill:var(--res); stroke:var(--res-edge); stroke-width:1; }
+.bbd .film { fill:var(--film); stroke:var(--outline); stroke-width:1.2; }
+.bbd .sensor-area { fill:var(--area); } .bbd .trace { stroke:var(--metal); stroke-width:2; }
+.bbd .batt-box { fill:var(--header); } .bbd .batt-cell { fill:var(--film); stroke:var(--outline); stroke-width:1; }
+.bbd .halo { paint-order:stroke; stroke:var(--bb); stroke-width:4px; stroke-linejoin:round; }
+</style>
+<rect width="722" height="545" fill="#ffffff"/>
+<rect class="bb" x="300" y="200" width="402" height="258" rx="8"/>
+<rect class="bb-gap" x="308" y="313" width="386" height="14" rx="3"/>
+<rect class="net net-yellow" x="449" y="223" width="14" height="86" rx="4"/>
+<rect class="net net-white" x="467" y="223" width="14" height="86" rx="4"/>
+<rect class="net net-black" x="575" y="223" width="14" height="86" rx="4"/>
+<text class="bb-label" x="314" y="234" text-anchor="middle">a</text>
+<rect class="bb-hole" x="326.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="226.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="252" text-anchor="middle">b</text>
+<rect class="bb-hole" x="326.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="244.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="270" text-anchor="middle">c</text>
+<rect class="bb-hole" x="326.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="262.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="288" text-anchor="middle">d</text>
+<rect class="bb-hole" x="326.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="280.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="306" text-anchor="middle">e</text>
+<rect class="bb-hole" x="326.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="298.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="360" text-anchor="middle">f</text>
+<rect class="bb-hole" x="326.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="352.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="378" text-anchor="middle">g</text>
+<rect class="bb-hole" x="326.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="370.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="396" text-anchor="middle">h</text>
+<rect class="bb-hole" x="326.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="388.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="414" text-anchor="middle">i</text>
+<rect class="bb-hole" x="326.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="406.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="432" text-anchor="middle">j</text>
+<rect class="bb-hole" x="326.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="424.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="330" y="217" text-anchor="middle">1</text>
+<text class="bb-label" x="402" y="217" text-anchor="middle">5</text>
+<text class="bb-label" x="492" y="217" text-anchor="middle">10</text>
+<text class="bb-label" x="582" y="217" text-anchor="middle">15</text>
+<text class="bb-label" x="672" y="217" text-anchor="middle">20</text>
+<rect class="board" x="40" y="250" width="150" height="150" rx="18"/>
+<text class="svg-text" x="115" y="315" text-anchor="middle" font-weight="700">ATOM Lite</text>
+<text class="svg-muted" x="115" y="333" text-anchor="middle">裏面</text>
+<rect x="48" y="268" width="16" height="104" rx="2" class="header"/>
+<rect x="166" y="288" width="16" height="84" rx="2" class="header"/>
+<rect class="pin" x="52" y="276" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="284" text-anchor="end">3V3</text>
+<rect class="pin" x="52" y="296" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="304" text-anchor="end">G22</text>
+<rect class="pin" x="52" y="316" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="324" text-anchor="end">G19</text>
+<rect class="pin" x="52" y="336" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="344" text-anchor="end">G23</text>
+<rect class="pin" x="52" y="356" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="364" text-anchor="end">G33</text>
+<rect class="pin" x="170" y="296" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="304">G21</text>
+<rect class="pin" x="170" y="316" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="324">G25</text>
+<rect class="pin" x="170" y="336" width="8" height="8"/>
+<text class="svg-mono" x="164" y="344" text-anchor="end">5V</text>
+<rect class="pin" x="170" y="356" width="8" height="8"/>
+<text class="svg-mono" x="164" y="364" text-anchor="end">GND</text>
+<rect class="grove" x="82" y="392" width="66" height="20" rx="3"/>
+<circle cx="95" cy="402" r="4" class="dot-black"/>
+<circle cx="108" cy="402" r="4" class="dot-red"/>
+<circle cx="121" cy="402" r="4" class="dot-yellow"/>
+<circle cx="134" cy="402" r="4" class="dot-white"/>
+<text class="svg-muted" x="76" y="406" text-anchor="end">Grove</text>
+<rect class="batt-box" x="40" y="120" width="118" height="56" rx="6"/>
+<rect class="batt-cell" x="48" y="130" width="28" height="36" rx="3"/>
+<text class="svg-muted" x="62.0" y="152.0" text-anchor="middle">1.5V</text>
+<rect class="batt-cell" x="82" y="130" width="28" height="36" rx="3"/>
+<text class="svg-muted" x="96.0" y="152.0" text-anchor="middle">1.5V</text>
+<rect class="batt-cell" x="116" y="130" width="28" height="36" rx="3"/>
+<text class="svg-muted" x="130.0" y="152.0" text-anchor="middle">1.5V</text>
+<text class="svg-text" x="40" y="94" font-weight="600">単四電池×3（スイッチ付き電池ボックス）</text>
+<text class="svg-muted" x="40" y="110">書き込むときはスイッチを切る</text>
+<path class="outline" d="M158 138 L 216.0 138 L 216.0 340 L 174 340"/><path class="w w-red" d="M158 138 L 216.0 138 L 216.0 340 L 174 340"/>
+<path class="outline" d="M158 158 L 228.0 158 L 228.0 360 L 174 360"/><path class="w w-black" d="M158 158 L 228.0 158 L 228.0 360 L 174 360"/>
+<text class="svg-mono" x="164" y="134">+</text>
+<text class="svg-mono" x="164" y="172">−</text>
+<rect class="film" x="448.0" y="150" width="34" height="76" rx="2"/>
+<line class="trace" x1="456" y1="150" x2="456" y2="226"/>
+<line class="trace" x1="474" y1="150" x2="474" y2="226"/>
+<rect class="film" x="403.0" y="28" width="124" height="124" rx="6"/>
+<rect class="sensor-area" x="411.0" y="36" width="108" height="108" rx="3"/>
+<line class="lead" x1="456" y1="224" x2="456" y2="230"/>
+<line class="lead" x1="474" y1="224" x2="474" y2="230"/>
+<text class="svg-text" x="537.0" y="70" font-weight="600">感圧センサ</text>
+<text class="svg-muted" x="537.0" y="88">MF02A（実物は約4cm角）</text>
+<text class="svg-muted" x="443.0" y="175" text-anchor="end">Pin1</text>
+<text class="svg-muted" x="487.0" y="175">Pin2</text>
+<line class="lead" x1="474" y1="248" x2="582" y2="248"/>
+<rect class="res" x="500.0" y="241" width="56" height="14" rx="6"/>
+<rect x="507.0" y="241" width="4" height="14" fill="#7a4a24"/>
+<rect x="519.6666666666666" y="241" width="4" height="14" fill="#1b1b1b"/>
+<rect x="532.3333333333334" y="241" width="4" height="14" fill="#e8761c"/>
+<rect x="547.0" y="241" width="4" height="14" fill="#c9a227"/>
+<text class="svg-text halo" x="528.0" y="237" text-anchor="middle" font-weight="600">10kΩ</text>
+<path class="outline" d="M121 412 C 121 458, 456 458, 456 284"/><path class="w w-yellow" d="M121 412 C 121 458, 456 458, 456 284"/>
+<rect class="pin-end" x="452" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M134 412 C 134 464, 474 464, 474 284"/><path class="w w-white" d="M134 412 C 134 464, 474 464, 474 284"/>
+<rect class="pin-end" x="470" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M95 412 C 95 470, 582 470, 582 284"/><path class="w w-black" d="M95 412 C 95 470, 582 470, 582 284"/>
+<rect class="pin-end" x="578" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M108 412 C 108 500, 148 500, 200 500"/><path class="w w-red" d="M108 412 C 108 500, 148 500, 200 500"/>
+<rect class="cap" x="198" y="495" width="14" height="10" rx="3"/>
+<text class="svg-muted" x="218" y="504">5V（赤）: 使わない。電池の＋とつながっているので先を必ず絶縁</text>
+</svg>
