@@ -1,0 +1,1051 @@
+<title>ペダル圧力センサー配線</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: 回路図カード2枚（A/B）を並べ、下に注意と部品表。狭い画面では縦に積む */
+:root {
+  --bg: #f3f5f1;
+  --panel: #ffffff;
+  --fg: #1c221e;
+  --muted: #5a665f;
+  --line: #cfd6d0;
+  --accent: #e2611a;
+  --ok: #2f8a57;
+  --warn-bg: #fff3e8;
+  --wire-red: #d23a2c;
+  --wire-yellow: #d9a800;
+  --wire-white: #f7f7f3;
+  --wire-black: #1f1f1f;
+  --wire-3v3: #e2611a;
+  --wire-outline: #8b958f;
+  --part-fill: #fbfcfa;
+  --board: #e9ece8;
+  --bb: #f2f0ea;
+  --bb-gap: #e3e0d7;
+  --bb-hole: #3a3a3a;
+  --pin-metal: #a7adb0;
+  --res-body: #e3cfa6;
+  --res-edge: #b49b6c;
+  --fsr-film: #f4f0e2;
+  --fsr-area: #2c2c2c;
+  --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111513; --panel: #191e1b; --fg: #e5eae6; --muted: #9aa59f; --line: #313b35;
+    --accent: #ff7a33; --ok: #5cc48a; --warn-bg: #2a1d14;
+    --wire-black: #0a0a0a; --wire-outline: #8f9a94; --part-fill: #222824; --board: #232a26; --bb: #d9d6cc; --bb-gap: #c6c2b6; --bb-hole: #2a2a2a; --pin-metal: #b9c0c3; --res-body: #d8c39a; --res-edge: #a88f62; --fsr-film: #e7e2d2; --fsr-area: #2c2c2c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111513; --panel: #191e1b; --fg: #e5eae6; --muted: #9aa59f; --line: #313b35;
+  --accent: #ff7a33; --ok: #5cc48a; --warn-bg: #2a1d14;
+  --wire-black: #0a0a0a; --wire-outline: #8f9a94; --part-fill: #222824; --board: #232a26; --bb: #d9d6cc; --bb-gap: #c6c2b6; --bb-hole: #2a2a2a; --pin-metal: #b9c0c3; --res-body: #d8c39a; --res-edge: #a88f62; --fsr-film: #e7e2d2; --fsr-area: #2c2c2c;
+  color-scheme: dark;
+}
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  line-height: 1.7;
+}
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 24px;
+}
+header h1 { font-size: 1.6rem; margin: 0 0 4px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 65ch; }
+.warn {
+  background: var(--warn-bg);
+  border-left: 4px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: 6px;
+}
+.warn strong { color: var(--accent); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 20px; }
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.card h2 { margin: 0; font-size: 1.15rem; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tag {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.tag.ok { color: var(--ok); }
+.tag.alt { color: var(--muted); }
+.diagram { overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 520px; height: auto; }
+.card p { margin: 0; color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: 0.92em; }
+.formula {
+  font-family: var(--font-mono);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.8rem; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--wire-outline); vertical-align: -2px; margin-right: 6px; }
+ol { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+h3 { margin: 0 0 8px; font-size: 1rem; }
+
+/* SVG */
+.svg-text { fill: var(--fg); font-family: var(--font-body); font-size: 13px; }
+.svg-mono { fill: var(--fg); font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
+.svg-muted { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
+.board { fill: var(--board); stroke: var(--line); stroke-width: 1.5; }
+.grove { fill: var(--panel); stroke: var(--wire-outline); stroke-width: 1.2; }
+.part { fill: var(--part-fill); stroke: var(--fg); stroke-width: 1.8; }
+.outline { fill: none; stroke: var(--wire-outline); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+.w { fill: none; stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; }
+.w-red { stroke: var(--wire-red); }
+.w-yellow { stroke: var(--wire-yellow); }
+.w-white { stroke: var(--wire-white); }
+.w-black { stroke: var(--wire-black); }
+.w-3v3 { stroke: var(--wire-3v3); }
+.pin { stroke: var(--wire-outline); stroke-width: 1; }
+.unused { opacity: 0.4; }
+.node { fill: var(--fg); }
+.arrow { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+.arrowhead { fill: var(--fg); }
+
+/* ブレッドボード図 */
+.bb { fill: var(--bb); stroke: var(--line); stroke-width: 1.5; }
+.bb-gap { fill: var(--bb-gap); }
+.bb-hole { fill: var(--bb-hole); }
+.bb-label { fill: var(--muted); font-family: var(--font-mono); font-size: 9px; }
+.net-3v3 { fill: var(--wire-3v3); opacity: 0.22; }
+.net-5v { fill: var(--wire-red); opacity: 0.2; }
+.net-sig { fill: var(--ok); opacity: 0.22; }
+.net-mid { fill: var(--muted); opacity: 0.2; }
+.net-gnd { fill: var(--fg); opacity: 0.14; }
+.pin-end { fill: var(--pin-metal); stroke: var(--wire-outline); stroke-width: 1; }
+.cap { fill: var(--muted); }
+.lead { stroke: var(--pin-metal); stroke-width: 2.5; stroke-linecap: round; }
+.res { fill: var(--res-body); stroke: var(--res-edge); stroke-width: 1; }
+.fsr-body { fill: var(--fsr-film); stroke: var(--wire-outline); stroke-width: 1.2; }
+.fsr-area { fill: var(--fsr-area); }
+.fsr-tail { fill: var(--fsr-film); stroke: var(--wire-outline); stroke-width: 1; }
+.fsr-trace { stroke: var(--pin-metal); stroke-width: 2; }
+.halo { paint-order: stroke; stroke: var(--bb); stroke-width: 4px; stroke-linejoin: round; }
+.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+
+/* ブレッドボード図（breadboard-diagram skill の --print-css） */
+
+.bbd { --fg:#1c221e; --muted:#5a665f; --line:#cfd6d0; --board:#e9ece8; --panel:#ffffff; --outline:#8b958f;
+  --bb:#f2f0ea; --bb-gap:#e3e0d7; --bb-hole:#3a3a3a; --metal:#a7adb0; --res:#e3cfa6; --res-edge:#b49b6c;
+  --film:#f4f0e2; --area:#2c2c2c; --header:#1f1f1f;
+  --c-black:#1f1f1f; --c-red:#d23a2c; --c-yellow:#d9a800; --c-white:#f7f7f3; --c-orange:#e2611a;
+  --c-blue:#2d5fd3; --c-green:#2f8a57; --c-gray:#5a665f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bbd { --fg:#e5eae6; --muted:#9aa59f; --line:#313b35; --board:#232a26; --panel:#191e1b; --outline:#8f9a94;
+  --bb:#d9d6cc; --bb-gap:#c6c2b6; --bb-hole:#2a2a2a; --metal:#b9c0c3; --res:#d8c39a; --res-edge:#a88f62;
+  --film:#e7e2d2; --area:#2c2c2c; --header:#0a0a0a; --c-black:#0a0a0a; --c-gray:#9aa59f; } }
+:root[data-theme="dark"] .bbd { --fg:#e5eae6; --muted:#9aa59f; --line:#313b35; --board:#232a26; --panel:#191e1b; --outline:#8f9a94;
+  --bb:#d9d6cc; --bb-gap:#c6c2b6; --bb-hole:#2a2a2a; --metal:#b9c0c3; --res:#d8c39a; --res-edge:#a88f62;
+  --film:#e7e2d2; --area:#2c2c2c; --header:#0a0a0a; --c-black:#0a0a0a; --c-gray:#9aa59f; }
+
+.bbd .svg-text { fill:var(--fg); font-family:"IBM Plex Sans JP","Hiragino Sans","Noto Sans JP",sans-serif; font-size:13px; }
+.bbd .svg-mono { fill:var(--fg); font-family:"JetBrains Mono",Menlo,monospace; font-size:12px; font-weight:700; }
+.bbd .svg-muted { fill:var(--muted); font-family:"IBM Plex Sans JP","Hiragino Sans","Noto Sans JP",sans-serif; font-size:11px; }
+.bbd .unused { opacity:.4; }
+.bbd .board { fill:var(--board); stroke:var(--line); stroke-width:1.5; }
+.bbd .header { fill:var(--header); }
+.bbd .pin { fill:var(--board); stroke:var(--outline); stroke-width:1; }
+.bbd .grove { fill:var(--panel); stroke:var(--outline); stroke-width:1.2; }
+.bbd .dot-black { fill:var(--c-black); stroke:var(--outline); } .bbd .dot-red { fill:var(--c-red); stroke:var(--outline); }
+.bbd .dot-yellow { fill:var(--c-yellow); stroke:var(--outline); } .bbd .dot-white { fill:var(--c-white); stroke:var(--outline); }
+.bbd .bb { fill:var(--bb); stroke:var(--line); stroke-width:1.5; }
+.bbd .bb-gap { fill:var(--bb-gap); } .bbd .bb-hole { fill:var(--bb-hole); }
+.bbd .bb-label { fill:var(--muted); font-family:Menlo,monospace; font-size:9px; }
+.bbd .net { opacity:.22; }
+.bbd .net-black { fill:var(--fg); opacity:.14; } .bbd .net-red { fill:var(--c-red); } .bbd .net-yellow { fill:var(--c-yellow); }
+.bbd .net-white { fill:var(--c-green); } .bbd .net-orange { fill:var(--c-orange); } .bbd .net-blue { fill:var(--c-blue); }
+.bbd .net-green { fill:var(--c-green); } .bbd .net-gray { fill:var(--c-gray); }
+.bbd .outline { fill:none; stroke:var(--outline); stroke-width:7; stroke-linecap:round; stroke-linejoin:round; }
+.bbd .w { fill:none; stroke-width:4.5; stroke-linecap:round; stroke-linejoin:round; }
+.bbd .w-black { stroke:var(--c-black); } .bbd .w-red { stroke:var(--c-red); } .bbd .w-yellow { stroke:var(--c-yellow); }
+.bbd .w-white { stroke:var(--c-white); } .bbd .w-orange { stroke:var(--c-orange); } .bbd .w-blue { stroke:var(--c-blue); }
+.bbd .w-green { stroke:var(--c-green); } .bbd .w-gray { stroke:var(--c-gray); }
+.bbd .pin-end { fill:var(--metal); stroke:var(--outline); stroke-width:1; }
+.bbd .cap { fill:var(--muted); }
+.bbd .lead { stroke:var(--metal); stroke-width:2.5; stroke-linecap:round; }
+.bbd .res { fill:var(--res); stroke:var(--res-edge); stroke-width:1; }
+.bbd .film { fill:var(--film); stroke:var(--outline); stroke-width:1.2; }
+.bbd .sensor-area { fill:var(--area); } .bbd .trace { stroke:var(--metal); stroke-width:2; }
+.bbd .halo { paint-order:stroke; stroke:var(--bb); stroke-width:4px; stroke-linejoin:round; }
+
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>ペダル圧力センサーの配線</h1>
+    <p>ATOM Lite の G32 で感圧抵抗（FSR）の電圧を読むための配線です。A と B のどちらか一方でつなぎます。線の色は Grove ケーブルの色に合わせていますが、デュポン変換ケーブルによって色が違うことがあるので、ATOM Lite 側の刻印で確かめてください。</p>
+  </header>
+
+  <div class="warn">
+    <strong>G32 に入れていいのは 3V 前後まで。</strong>
+    Grove の赤い線（5V）に感圧抵抗をじかにつなぐと、強く踏んだときに 5V 近くが G32 に入り、ATOM Lite を傷めるおそれがあります。
+  </div>
+
+  <div class="grid2">
+    <section class="card">
+      <h3>使うセンサー</h3>
+      <p>感圧センサ（四角形）<span class="mono">MF02A-N-221-A01</span>（Taiwan Alpha）。押すと抵抗が下がるシートで、ただの抵抗なので 3.3V でも 5V でも使えます。端子は 2.54mm 間隔のオスピン2本で、ブレッドボードにそのまま挿せます。</p>
+      <table>
+        <thead><tr><th>押す重さ</th><th>センサーの抵抗</th><th>A の G32</th><th>B の G32</th></tr></thead>
+        <tbody>
+          <tr><td>押していない</td><td class="mono">20MΩ 以上</td><td class="mono">≒ 0V</td><td class="mono">≒ 0V</td></tr>
+          <tr><td>30g</td><td class="mono">約 60kΩ</td><td class="mono">約 0.5V</td><td class="mono">約 0.7V</td></tr>
+          <tr><td>100g</td><td class="mono">約 7.5kΩ</td><td class="mono">約 1.9V</td><td class="mono">約 2.1V</td></tr>
+          <tr><td>1kg</td><td class="mono">約 1kΩ</td><td class="mono">約 3.0V</td><td class="mono">約 2.8V</td></tr>
+        </tbody>
+      </table>
+      <p>抵抗は仕様書のグラフ（直径10mmのゴムで押したとき）から読んだ目安です。</p>
+    </section>
+    <section class="card">
+      <h3>必要な材料</h3>
+      <table>
+        <thead><tr><th>部品</th><th>数</th><th>メモ</th></tr></thead>
+        <tbody>
+          <tr><td>感圧センサ（四角形）MF02A-N-221-A01</td><td>1</td><td>スイッチサイエンス 9697</td></tr>
+          <tr><td>ATOM Lite</td><td>1</td><td>手持ち</td></tr>
+          <tr><td>Grove → デュポン変換ケーブル（オス）</td><td>1</td><td>ブレッドボードに挿すのでオスピンのもの</td></tr>
+          <tr><td>抵抗 10kΩ（1/4W）</td><td>1</td><td>A・B 共通</td></tr>
+          <tr><td>抵抗 6.8kΩ（1/4W）</td><td>1</td><td>B のときだけ</td></tr>
+          <tr><td>ブレッドボード（小さいもの）</td><td>1</td><td>センサー・抵抗・ケーブルをつなぐ</td></tr>
+          <tr><td>ジャンパワイヤ（オス‐オス）</td><td>2〜3</td><td>A では ATOM Lite のピン列（メス）の 3V3 からブレッドボードへ</td></tr>
+          <tr><td>USB-C ケーブル</td><td>1</td><td>書き込みと Serial 用。テスト中は TailBat を外す</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <div class="warn">
+    <strong>このセンサーが測れるのは 1kg まで。</strong>
+    足で踏むと数 kg かかるので、すぐに値が頭打ちになり、センサーにも負担がかかります（寿命は 1kg で 1000 万回の試験値）。ペダルにするときは、スポンジやゴムを挟んで力を逃がします。シートの付け根から 5mm 以内は曲げず、配線部分も 90° 以上折らないでください。
+  </div>
+
+  <section class="card">
+    <h2>ATOM Lite のどこに挿すか</h2>
+    <div class="diagram">
+      <svg viewBox="0 0 660 380" role="img" aria-label="ATOM Lite の裏面。左のピン列は上から3V3、G22、G19、G23、G33。右のピン列はG21、G25、5V、GND。下のGrove端子は左からGND、5V、G26、G32">
+        <text class="svg-muted" x="330" y="22" text-anchor="middle">ラベルのある裏面を見た向き（Grove 端子が下）</text>
+        <!-- 本体 -->
+        <rect class="board" x="190" y="40" width="260" height="250" rx="28"/>
+        <text class="svg-text" x="320" y="140" text-anchor="middle" font-weight="700">ATOM Lite</text>
+        <text class="svg-muted" x="320" y="160" text-anchor="middle">裏面</text>
+
+        <!-- 左のピン列（5本） -->
+        <rect x="200" y="74" width="26" height="170" rx="3" fill="var(--wire-black)"/>
+        <rect class="pin" x="205" y="82" width="16" height="16" fill="var(--board)"/>
+        <rect class="pin" x="205" y="116" width="16" height="16" fill="var(--board)"/>
+        <rect class="pin" x="205" y="150" width="16" height="16" fill="var(--board)"/>
+        <rect class="pin" x="205" y="184" width="16" height="16" fill="var(--board)"/>
+        <rect class="pin" x="205" y="218" width="16" height="16" fill="var(--board)"/>
+        <text class="svg-mono" x="180" y="94" text-anchor="end" fill="var(--wire-3v3)" style="fill:var(--wire-3v3)">3V3</text>
+        <text class="svg-mono unused" x="180" y="128" text-anchor="end">G22</text>
+        <text class="svg-mono unused" x="180" y="162" text-anchor="end">G19</text>
+        <text class="svg-mono unused" x="180" y="196" text-anchor="end">G23</text>
+        <text class="svg-mono unused" x="180" y="230" text-anchor="end">G33</text>
+        <circle cx="213" cy="90" r="14" fill="none" stroke="var(--wire-3v3)" stroke-width="3"/>
+        <text class="svg-text" x="24" y="94" font-weight="600" style="fill:var(--wire-3v3)">A で使う →</text>
+
+        <!-- 右のピン列（4本） -->
+        <rect x="414" y="108" width="26" height="136" rx="3" fill="var(--wire-black)"/>
+        <rect class="pin" x="419" y="116" width="16" height="16" fill="var(--board)"/>
+        <rect class="pin" x="419" y="150" width="16" height="16" fill="var(--board)"/>
+        <rect class="pin" x="419" y="184" width="16" height="16" fill="var(--board)"/>
+        <rect class="pin" x="419" y="218" width="16" height="16" fill="var(--board)"/>
+        <text class="svg-mono unused" x="460" y="128">G21</text>
+        <text class="svg-mono unused" x="460" y="162">G25</text>
+        <text class="svg-mono unused" x="460" y="196">5V</text>
+        <text class="svg-mono unused" x="460" y="230">GND</text>
+        <text class="svg-muted" x="500" y="213">右の 5V と GND は</text>
+        <text class="svg-muted" x="500" y="229">Grove と同じもの</text>
+
+        <!-- Grove 端子 -->
+        <rect class="grove" x="262" y="252" width="116" height="46" rx="5"/>
+        <circle cx="284" cy="275" r="7" fill="var(--wire-black)" stroke="var(--wire-outline)"/>
+        <circle cx="308" cy="275" r="7" fill="var(--wire-red)" stroke="var(--wire-outline)"/>
+        <circle cx="332" cy="275" r="7" fill="var(--wire-yellow)" stroke="var(--wire-outline)" class="unused"/>
+        <circle cx="356" cy="275" r="7" fill="var(--wire-white)" stroke="var(--wire-outline)"/>
+        <circle cx="284" cy="275" r="13" fill="none" stroke="var(--ok)" stroke-width="3"/>
+        <circle cx="308" cy="275" r="13" fill="none" stroke="var(--wire-red)" stroke-width="3" stroke-dasharray="4 3"/>
+        <circle cx="356" cy="275" r="13" fill="none" stroke="var(--ok)" stroke-width="3"/>
+        <text class="svg-mono" x="284" y="318" text-anchor="middle">GND</text>
+        <text class="svg-mono" x="308" y="336" text-anchor="middle">5V</text>
+        <text class="svg-mono unused" x="332" y="318" text-anchor="middle">G26</text>
+        <text class="svg-mono" x="356" y="336" text-anchor="middle">G32</text>
+        <text class="svg-muted" x="284" y="356" text-anchor="middle">黒</text>
+        <text class="svg-muted" x="308" y="356" text-anchor="middle">赤</text>
+        <text class="svg-muted" x="356" y="356" text-anchor="middle">白</text>
+        <text class="svg-muted" x="400" y="272">Grove 端子</text>
+        <text class="svg-muted" x="400" y="288">（左から GND / 5V / G26 / G32）</text>
+      </svg>
+    </div>
+    <table>
+      <thead><tr><th>印</th><th>ピン</th><th>使うとき</th></tr></thead>
+      <tbody>
+        <tr><td><span class="swatch" style="border:3px solid var(--ok);background:transparent"></span>緑の丸</td><td class="mono">Grove の GND（黒）・G32（白）</td><td>A でも B でも使う</td></tr>
+        <tr><td><span class="swatch" style="border:3px solid var(--wire-3v3);background:transparent"></span>オレンジの丸</td><td class="mono">左のピン列の一番上 3V3</td><td>A のときだけ。デュポン線でつなぐ</td></tr>
+        <tr><td><span class="swatch" style="border:3px dashed var(--wire-red);background:transparent"></span>赤の点線の丸</td><td class="mono">Grove の 5V（赤）</td><td>B のときだけ</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+
+  <section class="card">
+    <h2>ブレッドボードでの配線図</h2>
+    <p>実物の並びで描いた図です。ブレッドボードは、同じ番号の列の a〜e（と f〜j）が縦につながっています。色を付けた列がつながっているところです。</p>
+    <h3>A. 3.3V から電源をとる（おすすめ）</h3>
+    <div class="diagram"><svg class="bbd" viewBox="0 0 722 545" role="img" aria-label="ペダル圧力センサー 配線A（3.3Vから電源をとる）">
+<rect class="bb" x="300" y="200" width="402" height="258" rx="8"/>
+<rect class="bb-gap" x="308" y="313" width="386" height="14" rx="3"/>
+<rect class="net net-orange" x="395" y="223" width="14" height="86" rx="4"/>
+<rect class="net net-white" x="413" y="223" width="14" height="86" rx="4"/>
+<rect class="net net-black" x="521" y="223" width="14" height="86" rx="4"/>
+<text class="bb-label" x="314" y="234" text-anchor="middle">a</text>
+<rect class="bb-hole" x="326.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="226.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="252" text-anchor="middle">b</text>
+<rect class="bb-hole" x="326.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="244.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="270" text-anchor="middle">c</text>
+<rect class="bb-hole" x="326.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="262.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="288" text-anchor="middle">d</text>
+<rect class="bb-hole" x="326.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="280.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="306" text-anchor="middle">e</text>
+<rect class="bb-hole" x="326.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="298.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="360" text-anchor="middle">f</text>
+<rect class="bb-hole" x="326.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="352.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="378" text-anchor="middle">g</text>
+<rect class="bb-hole" x="326.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="370.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="396" text-anchor="middle">h</text>
+<rect class="bb-hole" x="326.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="388.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="414" text-anchor="middle">i</text>
+<rect class="bb-hole" x="326.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="406.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="432" text-anchor="middle">j</text>
+<rect class="bb-hole" x="326.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="424.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="330" y="217" text-anchor="middle">1</text>
+<text class="bb-label" x="402" y="217" text-anchor="middle">5</text>
+<text class="bb-label" x="492" y="217" text-anchor="middle">10</text>
+<text class="bb-label" x="582" y="217" text-anchor="middle">15</text>
+<text class="bb-label" x="672" y="217" text-anchor="middle">20</text>
+<rect class="board" x="40" y="250" width="150" height="150" rx="18"/>
+<text class="svg-text" x="115" y="315" text-anchor="middle" font-weight="700">ATOM Lite</text>
+<text class="svg-muted" x="115" y="333" text-anchor="middle">裏面</text>
+<rect x="48" y="268" width="16" height="104" rx="2" class="header"/>
+<rect x="166" y="288" width="16" height="84" rx="2" class="header"/>
+<rect class="pin" x="52" y="276" width="8" height="8"/>
+<text class="svg-mono" x="42" y="284" text-anchor="end">3V3</text>
+<rect class="pin" x="52" y="296" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="304" text-anchor="end">G22</text>
+<rect class="pin" x="52" y="316" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="324" text-anchor="end">G19</text>
+<rect class="pin" x="52" y="336" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="344" text-anchor="end">G23</text>
+<rect class="pin" x="52" y="356" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="364" text-anchor="end">G33</text>
+<rect class="pin" x="170" y="296" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="304">G21</text>
+<rect class="pin" x="170" y="316" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="324">G25</text>
+<rect class="pin" x="170" y="336" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="344">5V</text>
+<rect class="pin" x="170" y="356" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="364">GND</text>
+<rect class="grove" x="82" y="392" width="66" height="20" rx="3"/>
+<circle cx="95" cy="402" r="4" class="dot-black"/>
+<circle cx="108" cy="402" r="4" class="dot-red"/>
+<circle cx="121" cy="402" r="4" class="dot-yellow"/>
+<circle cx="134" cy="402" r="4" class="dot-white"/>
+<text class="svg-muted" x="76" y="406" text-anchor="end">Grove</text>
+<rect class="film" x="394.0" y="150" width="34" height="76" rx="2"/>
+<line class="trace" x1="402" y1="150" x2="402" y2="226"/>
+<line class="trace" x1="420" y1="150" x2="420" y2="226"/>
+<rect class="film" x="349.0" y="28" width="124" height="124" rx="6"/>
+<rect class="sensor-area" x="357.0" y="36" width="108" height="108" rx="3"/>
+<line class="lead" x1="402" y1="224" x2="402" y2="230"/>
+<line class="lead" x1="420" y1="224" x2="420" y2="230"/>
+<text class="svg-text" x="483.0" y="70" font-weight="600">感圧センサ</text>
+<text class="svg-muted" x="483.0" y="88">MF02A（実物は約4cm角）</text>
+<text class="svg-muted" x="389.0" y="175" text-anchor="end">Pin1</text>
+<text class="svg-muted" x="433.0" y="175">Pin2</text>
+<line class="lead" x1="420" y1="248" x2="528" y2="248"/>
+<rect class="res" x="446.0" y="241" width="56" height="14" rx="6"/>
+<rect x="453.0" y="241" width="4" height="14" fill="#7a4a24"/>
+<rect x="465.6666666666667" y="241" width="4" height="14" fill="#1b1b1b"/>
+<rect x="478.3333333333333" y="241" width="4" height="14" fill="#e8761c"/>
+<rect x="493.0" y="241" width="4" height="14" fill="#c9a227"/>
+<text class="svg-text halo" x="474.0" y="237" text-anchor="middle" font-weight="600">10kΩ</text>
+<path class="outline" d="M56 280 C 20 200, 312 266, 402 266"/><path class="w w-orange" d="M56 280 C 20 200, 312 266, 402 266"/>
+<rect class="pin-end" x="398" y="262" width="8" height="8" rx="1.5"/>
+<text class="svg-muted halo" x="180" y="205">ジャンパワイヤ（3V3 → c5）</text>
+<path class="outline" d="M134 412 C 134 458, 420 458, 420 284"/><path class="w w-white" d="M134 412 C 134 458, 420 458, 420 284"/>
+<rect class="pin-end" x="416" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M95 412 C 95 464, 528 464, 528 284"/><path class="w w-black" d="M95 412 C 95 464, 528 464, 528 284"/>
+<rect class="pin-end" x="524" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M108 412 C 108 500, 148 500, 200 500"/><path class="w w-red" d="M108 412 C 108 500, 148 500, 200 500"/>
+<rect class="cap" x="198" y="495" width="14" height="10" rx="3"/>
+<text class="svg-muted" x="218" y="504">5V（赤）: 使わない。先をテープで絶縁</text>
+<path class="outline" d="M121 412 C 121 524, 161 524, 200 524"/><path class="w w-yellow" d="M121 412 C 121 524, 161 524, 200 524"/>
+<rect class="cap" x="198" y="519" width="14" height="10" rx="3"/>
+<text class="svg-muted" x="218" y="528">G26（黄）: 使わない</text>
+</svg>
+</div>
+    <ol class="steps">
+      <li>感圧センサのピンを <span class="mono">a5</span>（Pin1）と <span class="mono">a6</span>（Pin2）に挿す</li>
+      <li>10kΩ を <span class="mono">b6</span> と <span class="mono">b12</span> に挿す</li>
+      <li>ATOM Lite の左のピン列の一番上（3V3）から、ジャンパワイヤで <span class="mono">c5</span> へ</li>
+      <li>Grove の白（G32）を <span class="mono">d6</span>、黒（GND）を <span class="mono">d12</span> へ</li>
+      <li>Grove の赤（5V）と黄（G26）は使わない。赤はほかとぶつからないよう、先をテープで絶縁する</li>
+    </ol>
+    <h3>B. Grove だけでつなぐ</h3>
+    <div class="diagram"><svg class="bbd" viewBox="0 0 722 545" role="img" aria-label="ペダル圧力センサー 配線B（Groveだけでつなぐ）">
+<rect class="bb" x="300" y="200" width="402" height="258" rx="8"/>
+<rect class="bb-gap" x="308" y="313" width="386" height="14" rx="3"/>
+<rect class="net net-red" x="341" y="223" width="14" height="86" rx="4"/>
+<rect class="net net-gray" x="449" y="223" width="14" height="86" rx="4"/>
+<rect class="net net-white" x="467" y="223" width="14" height="86" rx="4"/>
+<rect class="net net-black" x="575" y="223" width="14" height="86" rx="4"/>
+<text class="bb-label" x="314" y="234" text-anchor="middle">a</text>
+<rect class="bb-hole" x="326.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="226.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="252" text-anchor="middle">b</text>
+<rect class="bb-hole" x="326.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="244.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="270" text-anchor="middle">c</text>
+<rect class="bb-hole" x="326.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="262.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="288" text-anchor="middle">d</text>
+<rect class="bb-hole" x="326.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="280.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="306" text-anchor="middle">e</text>
+<rect class="bb-hole" x="326.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="298.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="360" text-anchor="middle">f</text>
+<rect class="bb-hole" x="326.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="352.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="378" text-anchor="middle">g</text>
+<rect class="bb-hole" x="326.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="370.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="396" text-anchor="middle">h</text>
+<rect class="bb-hole" x="326.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="388.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="414" text-anchor="middle">i</text>
+<rect class="bb-hole" x="326.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="406.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="432" text-anchor="middle">j</text>
+<rect class="bb-hole" x="326.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="424.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="330" y="217" text-anchor="middle">1</text>
+<text class="bb-label" x="402" y="217" text-anchor="middle">5</text>
+<text class="bb-label" x="492" y="217" text-anchor="middle">10</text>
+<text class="bb-label" x="582" y="217" text-anchor="middle">15</text>
+<text class="bb-label" x="672" y="217" text-anchor="middle">20</text>
+<rect class="board" x="40" y="250" width="150" height="150" rx="18"/>
+<text class="svg-text" x="115" y="315" text-anchor="middle" font-weight="700">ATOM Lite</text>
+<text class="svg-muted" x="115" y="333" text-anchor="middle">裏面</text>
+<rect x="48" y="268" width="16" height="104" rx="2" class="header"/>
+<rect x="166" y="288" width="16" height="84" rx="2" class="header"/>
+<rect class="pin" x="52" y="276" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="284" text-anchor="end">3V3</text>
+<rect class="pin" x="52" y="296" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="304" text-anchor="end">G22</text>
+<rect class="pin" x="52" y="316" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="324" text-anchor="end">G19</text>
+<rect class="pin" x="52" y="336" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="344" text-anchor="end">G23</text>
+<rect class="pin" x="52" y="356" width="8" height="8"/>
+<text class="svg-mono unused" x="42" y="364" text-anchor="end">G33</text>
+<rect class="pin" x="170" y="296" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="304">G21</text>
+<rect class="pin" x="170" y="316" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="324">G25</text>
+<rect class="pin" x="170" y="336" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="344">5V</text>
+<rect class="pin" x="170" y="356" width="8" height="8"/>
+<text class="svg-mono unused" x="188" y="364">GND</text>
+<rect class="grove" x="82" y="392" width="66" height="20" rx="3"/>
+<circle cx="95" cy="402" r="4" class="dot-black"/>
+<circle cx="108" cy="402" r="4" class="dot-red"/>
+<circle cx="121" cy="402" r="4" class="dot-yellow"/>
+<circle cx="134" cy="402" r="4" class="dot-white"/>
+<text class="svg-muted" x="76" y="406" text-anchor="end">Grove</text>
+<rect class="film" x="448.0" y="150" width="34" height="76" rx="2"/>
+<line class="trace" x1="456" y1="150" x2="456" y2="226"/>
+<line class="trace" x1="474" y1="150" x2="474" y2="226"/>
+<rect class="film" x="403.0" y="28" width="124" height="124" rx="6"/>
+<rect class="sensor-area" x="411.0" y="36" width="108" height="108" rx="3"/>
+<line class="lead" x1="456" y1="224" x2="456" y2="230"/>
+<line class="lead" x1="474" y1="224" x2="474" y2="230"/>
+<text class="svg-text" x="537.0" y="70" font-weight="600">感圧センサ</text>
+<text class="svg-muted" x="537.0" y="88">MF02A（実物は約4cm角）</text>
+<text class="svg-muted" x="443.0" y="175" text-anchor="end">Pin1</text>
+<text class="svg-muted" x="487.0" y="175">Pin2</text>
+<line class="lead" x1="348" y1="248" x2="456" y2="248"/>
+<rect class="res" x="374.0" y="241" width="56" height="14" rx="6"/>
+<rect x="381.0" y="241" width="4" height="14" fill="#2d5fd3"/>
+<rect x="393.6666666666667" y="241" width="4" height="14" fill="#8c8c8c"/>
+<rect x="406.3333333333333" y="241" width="4" height="14" fill="#d23a2c"/>
+<rect x="421.0" y="241" width="4" height="14" fill="#c9a227"/>
+<text class="svg-text halo" x="402.0" y="237" text-anchor="middle" font-weight="600">6.8kΩ</text>
+<line class="lead" x1="474" y1="266" x2="582" y2="266"/>
+<rect class="res" x="500.0" y="259" width="56" height="14" rx="6"/>
+<rect x="507.0" y="259" width="4" height="14" fill="#7a4a24"/>
+<rect x="519.6666666666666" y="259" width="4" height="14" fill="#1b1b1b"/>
+<rect x="532.3333333333334" y="259" width="4" height="14" fill="#e8761c"/>
+<rect x="547.0" y="259" width="4" height="14" fill="#c9a227"/>
+<text class="svg-text halo" x="528.0" y="255" text-anchor="middle" font-weight="600">10kΩ</text>
+<path class="outline" d="M108 412 C 108 458, 348 458, 348 284"/><path class="w w-red" d="M108 412 C 108 458, 348 458, 348 284"/>
+<rect class="pin-end" x="344" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M134 412 C 134 464, 474 464, 474 284"/><path class="w w-white" d="M134 412 C 134 464, 474 464, 474 284"/>
+<rect class="pin-end" x="470" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M95 412 C 95 470, 582 470, 582 284"/><path class="w w-black" d="M95 412 C 95 470, 582 470, 582 284"/>
+<rect class="pin-end" x="578" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M121 412 C 121 500, 161 500, 200 500"/><path class="w w-yellow" d="M121 412 C 121 500, 161 500, 200 500"/>
+<rect class="cap" x="198" y="495" width="14" height="10" rx="3"/>
+<text class="svg-muted" x="218" y="504">G26（黄）: 使わない。先をテープで絶縁</text>
+</svg>
+</div>
+    <ol class="steps">
+      <li>感圧センサのピンを <span class="mono">a8</span>（Pin1）と <span class="mono">a9</span>（Pin2）に挿す</li>
+      <li>6.8kΩ を <span class="mono">b2</span> と <span class="mono">b8</span>、10kΩ を <span class="mono">c9</span> と <span class="mono">c15</span> に挿す</li>
+      <li>Grove の赤（5V）を <span class="mono">d2</span>、白（G32）を <span class="mono">d9</span>、黒（GND）を <span class="mono">d15</span> へ</li>
+      <li>Grove の黄（G26）は使わない。先をテープで絶縁する</li>
+    </ol>
+    <p>抵抗の色は 10kΩ が 茶・黒・橙・金、6.8kΩ が 青・灰・赤・金 です。抵抗とセンサには向きがないので、どちら向きに挿してもかまいません。</p>
+  </section>
+  <div class="cards">
+    <!-- A -->
+    <section class="card">
+      <h2>A. 3.3V から電源をとる <span class="tag ok">おすすめ</span></h2>
+      <div class="diagram">
+        <svg viewBox="0 0 640 300" role="img" aria-label="配線A: 3V3から感圧抵抗、G32、10kΩを経てGNDへ">
+          <!-- ATOM Lite -->
+          <rect class="board" x="20" y="24" width="180" height="262" rx="14"/>
+          <text class="svg-text" x="40" y="54" font-weight="700">ATOM Lite</text>
+          <text class="svg-muted" x="40" y="76">左のピン列</text>
+          <rect class="grove" x="120" y="108" width="80" height="168" rx="6"/>
+          <text class="svg-muted" x="40" y="128">Grove</text>
+          <text class="svg-muted" x="40" y="144">端子</text>
+          <!-- pins -->
+          <text class="svg-mono" x="150" y="64" text-anchor="end">3V3</text>
+          <text class="svg-mono unused" x="190" y="134" text-anchor="end">5V</text>
+          <text class="svg-mono unused" x="190" y="174" text-anchor="end">G26</text>
+          <text class="svg-mono" x="190" y="214" text-anchor="end">G32</text>
+          <text class="svg-mono" x="190" y="264" text-anchor="end">GND</text>
+          <line class="w w-red unused" x1="200" y1="130" x2="226" y2="130"/>
+          <line class="w w-yellow unused" x1="200" y1="170" x2="226" y2="170"/>
+
+          <!-- 3V3 -> FSR -->
+          <path class="outline" d="M156 60 H440 V84"/>
+          <path class="w w-3v3" d="M156 60 H440 V84"/>
+          <!-- FSR -> node -->
+          <path class="outline" d="M440 140 V210"/>
+          <path class="w w-3v3" d="M440 140 V210"/>
+          <!-- node -> G32 (white) -->
+          <path class="outline" d="M440 210 H200"/>
+          <path class="w w-white" d="M440 210 H200"/>
+          <!-- node -> 10k -->
+          <path class="outline" d="M440 210 V222"/>
+          <path class="w w-black" d="M440 210 V222"/>
+          <!-- 10k -> GND (black) -->
+          <path class="outline" d="M440 254 V260 H200"/>
+          <path class="w w-black" d="M440 254 V260 H200"/>
+
+          <!-- FSR -->
+          <rect class="part" x="426" y="84" width="28" height="56" rx="3"/>
+          <path class="arrow" d="M410 132 L470 92"/>
+          <path class="arrowhead" d="M470 92 l-10 1 l5 7 z"/>
+          <text class="svg-text" x="482" y="108" font-weight="600">感圧抵抗</text>
+          <text class="svg-muted" x="482" y="125">FSR。踏むと抵抗が下がる</text>
+
+          <!-- 10k -->
+          <rect class="part" x="428" y="222" width="24" height="32" rx="3"/>
+          <text class="svg-text" x="466" y="243" font-weight="600">10kΩ</text>
+
+          <circle class="node" cx="440" cy="210" r="5"/>
+          <text class="svg-muted" x="300" y="200">ここの電圧を読む</text>
+        </svg>
+      </div>
+      <p>電源だけ左のピン列の一番上の <span class="mono">3V3</span> からデュポン線でとり、信号と GND は Grove のままです。出力は 0〜3.3V に収まるので、センサーの範囲を全部使えます。</p>
+      <div class="formula">G32 = 3.3V × 10k ÷ (10k + R<sub>FSR</sub>)</div>
+    </section>
+
+    <!-- B -->
+    <section class="card">
+      <h2>B. Grove だけでつなぐ <span class="tag alt">配線が少ない</span></h2>
+      <div class="diagram">
+        <svg viewBox="0 0 640 300" role="img" aria-label="配線B: Groveの5Vから6.8kΩ、感圧抵抗、G32、10kΩを経てGNDへ">
+          <rect class="board" x="20" y="24" width="180" height="262" rx="14"/>
+          <text class="svg-text" x="40" y="54" font-weight="700">ATOM Lite</text>
+          <text class="svg-muted unused" x="40" y="76">左のピン列</text>
+          <rect class="grove" x="120" y="108" width="80" height="168" rx="6"/>
+          <text class="svg-muted" x="40" y="128">Grove</text>
+          <text class="svg-muted" x="40" y="144">端子</text>
+          <text class="svg-mono unused" x="150" y="64" text-anchor="end">3V3</text>
+          <text class="svg-mono" x="190" y="134" text-anchor="end">5V</text>
+          <text class="svg-mono unused" x="190" y="174" text-anchor="end">G26</text>
+          <text class="svg-mono" x="190" y="214" text-anchor="end">G32</text>
+          <text class="svg-mono" x="190" y="264" text-anchor="end">GND</text>
+          <line class="w w-yellow unused" x1="200" y1="170" x2="226" y2="170"/>
+
+          <!-- 5V (red) -> 6.8k -->
+          <path class="outline" d="M200 130 H320 V40 H440 V52"/>
+          <path class="w w-red" d="M200 130 H320 V40 H440 V52"/>
+          <!-- 6.8k -> FSR -->
+          <path class="outline" d="M440 84 V104"/>
+          <path class="w w-red" d="M440 84 V104"/>
+          <!-- FSR -> node -->
+          <path class="outline" d="M440 160 V210"/>
+          <path class="w w-red" d="M440 160 V210"/>
+          <!-- node -> G32 -->
+          <path class="outline" d="M440 210 H200"/>
+          <path class="w w-white" d="M440 210 H200"/>
+          <!-- node -> 10k -> GND -->
+          <path class="outline" d="M440 210 V222"/>
+          <path class="w w-black" d="M440 210 V222"/>
+          <path class="outline" d="M440 254 V260 H200"/>
+          <path class="w w-black" d="M440 254 V260 H200"/>
+
+          <!-- 6.8k -->
+          <rect class="part" x="428" y="52" width="24" height="32" rx="3"/>
+          <text class="svg-text" x="466" y="73" font-weight="600">6.8kΩ</text>
+          <text class="svg-muted" x="466" y="90">5V を 3V 以下に抑える</text>
+
+          <!-- FSR -->
+          <rect class="part" x="426" y="104" width="28" height="56" rx="3"/>
+          <path class="arrow" d="M410 152 L470 112"/>
+          <path class="arrowhead" d="M470 112 l-10 1 l5 7 z"/>
+          <text class="svg-text" x="482" y="134" font-weight="600">感圧抵抗</text>
+          <text class="svg-muted" x="482" y="151">FSR</text>
+
+          <!-- 10k -->
+          <rect class="part" x="428" y="222" width="24" height="32" rx="3"/>
+          <text class="svg-text" x="466" y="243" font-weight="600">10kΩ</text>
+
+          <circle class="node" cx="440" cy="210" r="5"/>
+          <text class="svg-muted" x="300" y="200">ここの電圧を読む</text>
+        </svg>
+      </div>
+      <p>Grove の4本だけで済みます。感圧抵抗が 0Ω になるほど強く踏んでも、G32 は約 3.0V までに収まります。そのぶん読める範囲は A より少し狭くなります。</p>
+      <div class="formula">G32 の最大 = 5V × 10k ÷ (6.8k + 10k) ≒ 3.0V</div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="card">
+      <h3>ATOM Lite の Grove 端子</h3>
+      <table>
+        <thead><tr><th>線の色</th><th>ピン</th><th>この配線での役割</th></tr></thead>
+        <tbody>
+          <tr><td><span class="swatch" style="background:var(--wire-black)"></span>黒</td><td class="mono">GND</td><td>10kΩ の下側</td></tr>
+          <tr><td><span class="swatch" style="background:var(--wire-red)"></span>赤</td><td class="mono">5V</td><td>B のときだけ使う</td></tr>
+          <tr><td><span class="swatch" style="background:var(--wire-yellow)"></span>黄</td><td class="mono">G26</td><td>使わない（無線中はアナログ入力が読めないことがある）</td></tr>
+          <tr><td><span class="swatch" style="background:var(--wire-white)"></span>白</td><td class="mono">G32</td><td>センサーの電圧を読む</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section class="card">
+      <h3>つないだら</h3>
+      <ol>
+        <li>ATOM Lite を USB でつなぐ（TailBat は外したまま）</li>
+        <li><span class="mono">pio run -e pedal -t upload</span> で書き込む</li>
+        <li><span class="mono">pio device monitor -e pedal</span> で値を見る</li>
+        <li>踏んでいない・軽く踏む・強く踏むで mV を比べる。最大が 3000mV を超えていないか確かめる</li>
+      </ol>
+      <p>10kΩ は、このセンサーの 30g〜1kg の範囲を 0.5〜3V に広げられる値です。</p>
+    </section>
+  </div>
+</div>

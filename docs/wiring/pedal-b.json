@@ -1,0 +1,16 @@
+{
+  "title": "ペダル圧力センサー 配線B（Groveだけでつなぐ）",
+  "board": { "type": "atom-lite" },
+  "breadboard": { "columns": 20 },
+  "parts": [
+    { "type": "sensor-2pin", "pins": ["a8", "a9"], "label": "感圧センサ", "note": "MF02A（実物は約4cm角）" },
+    { "type": "resistor", "value": "6.8k", "from": "b2", "to": "b8" },
+    { "type": "resistor", "value": "10k", "from": "c9", "to": "c15" }
+  ],
+  "wires": [
+    { "from": "grove.5V", "to": "d2" },
+    { "from": "grove.G32", "to": "d9" },
+    { "from": "grove.GND", "to": "d15" },
+    { "from": "grove.G26", "label": "G26（黄）: 使わない。先をテープで絶縁" }
+  ]
+}

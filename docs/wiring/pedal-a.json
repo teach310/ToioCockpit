@@ -1,0 +1,16 @@
+{
+  "title": "ペダル圧力センサー 配線A（3.3Vから電源をとる）",
+  "board": { "type": "atom-lite" },
+  "breadboard": { "columns": 20 },
+  "parts": [
+    { "type": "sensor-2pin", "pins": ["a5", "a6"], "label": "感圧センサ", "note": "MF02A（実物は約4cm角）" },
+    { "type": "resistor", "value": "10k", "from": "b6", "to": "b12" }
+  ],
+  "wires": [
+    { "from": "left.3V3", "to": "c5", "color": "orange", "label": "ジャンパワイヤ（3V3 → c5）", "label_at": [180, 205] },
+    { "from": "grove.G32", "to": "d6" },
+    { "from": "grove.GND", "to": "d12" },
+    { "from": "grove.5V", "label": "5V（赤）: 使わない。先をテープで絶縁" },
+    { "from": "grove.G26", "label": "G26（黄）: 使わない" }
+  ]
+}
