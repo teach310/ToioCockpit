@@ -12,6 +12,8 @@ public:
     enum class ShovelState { OFF, SEARCHING, CONNECTED };
     // ステータス表示の色
     enum class Tone { INFO, OK, WARN, ERROR };
+    // 速さのギア。遅い順。LOW / HIGH は Arduino のマクロとぶつかるので使わない
+    enum class SpeedGear { SLOW, LO, HI };
 
     explicit Dashboard(M5GFX& display) : _display(display), _canvas(&display) {}
 
@@ -31,15 +33,16 @@ public:
     void setShovel(ShovelState state, int arm);
     /// @param stick true なら JoyStick で曲がる (STICK)、false なら本体の傾きで曲がる (TILT)
     void setStickSteering(bool stick);
-    /// @param high true なら速さのギアが HIGH、false なら LOW
-    void setHighGear(bool high);
+    void setSpeedGear(SpeedGear gear);
+    /// 画面に触れている位置。触れているボタンを押し込んだ見た目にする（HORN は setHornPressed() で別に渡す）
+    void setTouch(bool pressed, int x, int y);
 
     bool isHornHit(int x, int y) const;
     /// 左下のショベル表示に触れたか。タッチで探し直すのに使う
     bool isShovelHit(int x, int y) const;
     /// 右下のハンドルの切り方の表示に触れたか。タッチで切り替えるのに使う
     bool isSteeringHit(int x, int y) const;
-    /// 左のギアの列に触れたか。タッチで速さのギアを切り替えるのに使う
+    /// 左上の速さのギアのボタンに触れたか。タッチで切り替えるのに使う
     bool isGearHit(int x, int y) const;
 
     /// @param force true のときは描き直しの間隔を待たずにすぐ描く
@@ -55,6 +58,12 @@ private:
     void drawBattery(int x, const char* label, int percent, bool charging);
     void drawShovel();
     void drawSteering();
+    void drawSpeedGear();
+    /// ボタンの土台を描く。押されていなければ影を付けて浮かせ、押されていれば沈めて accent の色にする
+    /// @return 中身を描くときに y に足す量（押されているときは沈んだ分だけ下にずらす）
+    int drawButton(int x, int y, int w, int h, bool pressed, uint16_t accent);
+
+    enum class TouchedButton { NONE, GEAR, SHOVEL, STEER };
 
     M5GFX& _display;
     LGFX_Sprite _canvas;
@@ -72,7 +81,8 @@ private:
     bool _hornPressed = false;
     ShovelState _shovelState = ShovelState::OFF;
     bool _stickSteering = false;
-    bool _highGear = false;
+    SpeedGear _speedGear = SpeedGear::LO;
+    TouchedButton _touched = TouchedButton::NONE;
     int _shovelArm = -1;
 
     bool _dirty = true;
