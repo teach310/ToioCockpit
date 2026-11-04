@@ -1,0 +1,16 @@
+{
+  "title": "ペダル圧力センサー 配線C（単四電池3本で動かし、G26からセンサーに給電）",
+  "board": { "type": "atom-lite" },
+  "breadboard": { "columns": 20 },
+  "parts": [
+    { "type": "battery", "cells": 3, "plus": "right.5V", "minus": "right.GND", "label": "単四電池×3（電池ボックス）", "note": "書き込むとき・使い終わったら赤い線を抜く" },
+    { "type": "sensor-2pin", "pins": ["a8", "a9"], "label": "感圧センサ", "note": "MF02A（実物は約4cm角）" },
+    { "type": "resistor", "value": "10k", "from": "b9", "to": "b15" }
+  ],
+  "wires": [
+    { "from": "grove.G26", "to": "d8" },
+    { "from": "grove.G32", "to": "d9" },
+    { "from": "grove.GND", "to": "d15" },
+    { "from": "grove.5V", "label": "5V（赤）: 使わない。電池の＋とつながっているので先を必ず絶縁" }
+  ]
+}
