@@ -120,6 +120,10 @@ enum class SoundMode { NONE, HORN, BACKUP };
 SoundMode lastSoundMode = SoundMode::NONE;
 
 bool joystickLedOn = false;
+uint32_t lastJoystickLedMs = 0;
+constexpr uint32_t JOYSTICK_LED_REFRESH_MS = 1000; // ユニットが再起動して色が戻っても直るよう、この間隔で送り直す
+uint32_t loggedJoystickFailures = 0;
+uint32_t lastJoystickLogMs = 0;
 
 void updateSound(SoundMode mode) {
   if (mode == lastSoundMode) {
@@ -320,12 +324,28 @@ bool isHornButtonTouched() {
 }
 
 // JoyStickを押し込んでいる間はライトを付ける。押し込みが読めているかを目で確かめられるようにする
+// ユニットが途中で再起動すると初期の色（緑）に戻るので、変わらなくても一定の間隔で送り直す
 void updateJoystickLed(bool on) {
-  if (!joystickAvailable || on == joystickLedOn) {
+  uint32_t now = millis();
+  if (!joystickAvailable || (on == joystickLedOn && now - lastJoystickLedMs < JOYSTICK_LED_REFRESH_MS)) {
     return;
   }
-  joystick.setRgbColor(on ? JOYSTICK_LED_COLOR : 0);
-  joystickLedOn = on;
+  if (joystick.setRgbColor(on ? JOYSTICK_LED_COLOR : 0)) {
+    joystickLedOn = on;
+    lastJoystickLedMs = now;
+  }
+}
+
+// JoyStickの読み取りの失敗を、1秒に1回まで Serial に出す（原因を調べる用）
+void logJoystickFailures() {
+  uint32_t now = millis();
+  if (joystick.failureCount() == loggedJoystickFailures || now - lastJoystickLogMs < 1000) {
+    return;
+  }
+  Serial.printf("[joystick] i2c read failed: total=%lu recover=%lu healthy=%d\n",
+                (unsigned long)joystick.failureCount(), (unsigned long)joystick.recoveryCount(), joystick.healthy());
+  loggedJoystickFailures = joystick.failureCount();
+  lastJoystickLogMs = now;
 }
 
 // ERRORにして、ボタンを押すか一定時間たったら nextState からやり直す
@@ -430,6 +450,7 @@ void updateInputs() {
   buttonRed.update();
   if (joystickAvailable) {
     joystick.update();
+    logJoystickFailures();
   }
 }
 
@@ -485,6 +506,12 @@ void loop(void)
       // 斜めに倒したときに回転とアームが両方動かないよう、大きく倒している方の軸だけ使う
       int rawX = joystickAvailable ? joystick.x() : 0;
       int rawY = joystickAvailable ? joystick.y() : 0;
+      // 読み取りに失敗している間は、画面の上の状態表示で知らせる
+      if (joystickAvailable && !joystick.healthy()) {
+        dashboard.setStatus("JOYSTICK ERR", "", Dashboard::Tone::WARN);
+      } else {
+        dashboard.setStatus("RUNNING", "", Dashboard::Tone::OK);
+      }
       bool xDominant = abs(rawX) > abs(rawY);
       int stickX = xDominant ? rawX : 0;
       int stickY = xDominant ? 0 : rawY;

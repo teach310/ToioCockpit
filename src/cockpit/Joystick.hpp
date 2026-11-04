@@ -30,7 +30,9 @@ public:
     };
 
     bool begin(const Config& config);
-    void update();
+    /// 値を読み直す。I2C の読み取りに失敗したら、操作していない扱い（中央・押していない）にして false を返す
+    /// 失敗が続いたら I2C を初期化し直して立て直す
+    bool update();
     /// 今のX軸・Y軸の値を中心にする。スティックに触れていない起動直後に呼ぶ
     /// @param samples 平均をとる回数
     void calibrateCenter(int samples = 16);
@@ -47,9 +49,19 @@ public:
     bool wasPressed() const { return !_lastPressed && _currentPressed; }
     bool wasReleased() const { return _lastPressed && !_currentPressed; }
 
-    void setRgbColor(uint32_t color) { _unit.set_rgb_color(color); }
+    /// 直近の読み取りが成功しているか
+    bool healthy() const { return _consecutiveFailures == 0; }
+    /// 起動してからの読み取りの失敗回数（原因を調べる用）
+    uint32_t failureCount() const { return _failureCount; }
+    /// I2C を初期化し直した回数
+    uint32_t recoveryCount() const { return _recoveryCount; }
+
+    bool setRgbColor(uint32_t color);
 
 private:
+    // ライブラリの読み取りは失敗を知らせず、読めなかったバイトを 0xFF にしてしまう
+    // （スティックを一番倒した・ボタンを押していない扱いになる）ので、失敗がわかるように自前で読む
+    bool readRegister(uint8_t reg, uint8_t* buffer, uint8_t length);
     int normalize(uint16_t value, const AxisCalibration& cal) const;
 
     M5UnitJoystick2 _unit;
@@ -60,6 +72,9 @@ private:
     uint16_t _rawY = 0;
     bool _lastPressed = false;
     bool _currentPressed = false;
+    uint32_t _consecutiveFailures = 0;
+    uint32_t _failureCount = 0;
+    uint32_t _recoveryCount = 0;
 };
 
 #endif
