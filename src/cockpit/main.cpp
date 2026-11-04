@@ -41,9 +41,13 @@ constexpr uint8_t SCAN_DURATION_SEC = 3;
 constexpr uint32_t JOYSTICK_WARNING_MS = 2000; // JoyStickが見つからないときの警告の表示時間
 
 // 走行のパラメータ。スロットルの変化量は CONTROL_INTERVAL_MS ごとの値
-// 速さのギア。メーター左のギアの列をタッチして切り替え、本体に保存する
-enum class SpeedGear : uint8_t { LO, HI }; // LOW / HIGH は Arduino のマクロとぶつかるので使わない
+// 速さのギア。メーター左上のボタンをタッチして SLOW → LOW → HIGH → SLOW の順に切り替え、本体に保存する
+// 数字は本体に保存する値。前からある LO / HI の値は変えない（LOW / HIGH は Arduino のマクロとぶつかるので使わない）
+enum class SpeedGear : uint8_t { LO = 0, HI = 1, SLOW = 2 };
 SpeedGear speedGear = SpeedGear::LO;
+// SLOW は内側の車輪（STEERING_GAIN の分だけ遅くなる）が、toio のモーターが回る一番遅い速さ 8 を下回らないようにする
+constexpr int8_t FORWARD_THROTTLE_SLOW = 40;
+constexpr int8_t BACKWARD_THROTTLE_SLOW = -30;
 constexpr int8_t FORWARD_THROTTLE_LOW = 70;
 constexpr int8_t BACKWARD_THROTTLE_LOW = -50;
 constexpr int8_t FORWARD_THROTTLE_HIGH = 100; // toio の drive() で出せる一番速い速さ
@@ -191,6 +195,18 @@ void updateCoreBattery() {
   dashboard.setCoreBattery(M5.Power.getBatteryLevel(), charging);
 }
 
+Dashboard::SpeedGear toDashboardGear(SpeedGear gear) {
+  switch (gear) {
+    case SpeedGear::SLOW:
+      return Dashboard::SpeedGear::SLOW;
+    case SpeedGear::HI:
+      return Dashboard::SpeedGear::HI;
+    case SpeedGear::LO:
+    default:
+      return Dashboard::SpeedGear::LO;
+  }
+}
+
 void setup(void)
 {
   auto cfg = M5.config();
@@ -215,7 +231,10 @@ void setup(void)
   dashboard.begin();
   dashboard.setStickSteering(steeringMode == SteeringMode::STICK);
   speedGear = static_cast<SpeedGear>(preferences.getUChar("gear", static_cast<uint8_t>(SpeedGear::LO)));
-  dashboard.setHighGear(speedGear == SpeedGear::HI);
+  if (speedGear != SpeedGear::LO && speedGear != SpeedGear::HI && speedGear != SpeedGear::SLOW) {
+    speedGear = SpeedGear::LO;
+  }
+  dashboard.setSpeedGear(toDashboardGear(speedGear));
   updateCoreBattery();
 
   // JoyStickがなくてもボタンで走れるので、知らせるだけで先に進む
@@ -242,10 +261,45 @@ void driveToward(int8_t targetThrottle, int stickX) {
   sendDrive(currentThrottle, steering);
 }
 
-void toggleSpeedGear() {
-  speedGear = speedGear == SpeedGear::LO ? SpeedGear::HI : SpeedGear::LO;
+// 速さのギアを1段上げる。一番上の次は一番下に戻る
+void cycleSpeedGear() {
+  switch (speedGear) {
+    case SpeedGear::SLOW:
+      speedGear = SpeedGear::LO;
+      break;
+    case SpeedGear::LO:
+      speedGear = SpeedGear::HI;
+      break;
+    case SpeedGear::HI:
+      speedGear = SpeedGear::SLOW;
+      break;
+  }
   preferences.putUChar("gear", static_cast<uint8_t>(speedGear));
-  dashboard.setHighGear(speedGear == SpeedGear::HI);
+  dashboard.setSpeedGear(toDashboardGear(speedGear));
+}
+
+int8_t forwardThrottle() {
+  switch (speedGear) {
+    case SpeedGear::SLOW:
+      return FORWARD_THROTTLE_SLOW;
+    case SpeedGear::HI:
+      return FORWARD_THROTTLE_HIGH;
+    case SpeedGear::LO:
+    default:
+      return FORWARD_THROTTLE_LOW;
+  }
+}
+
+int8_t backwardThrottle() {
+  switch (speedGear) {
+    case SpeedGear::SLOW:
+      return BACKWARD_THROTTLE_SLOW;
+    case SpeedGear::HI:
+      return BACKWARD_THROTTLE_HIGH;
+    case SpeedGear::LO:
+    default:
+      return BACKWARD_THROTTLE_LOW;
+  }
 }
 
 void toggleSteeringMode() {
@@ -288,6 +342,7 @@ void enterError(const char* detail, AppState nextState) {
   dashboard.setGear(Dashboard::Gear::P);
   dashboard.setSpeed(0);
   dashboard.setHornPressed(false);
+  dashboard.setTouch(false, 0, 0);
   dashboard.setToioBattery(-1);
   showStatus("ERROR", autoRetryCount < MAX_AUTO_RETRIES ? detail : "Push Button to retry",
              Dashboard::Tone::ERROR);
@@ -326,6 +381,7 @@ void enterSleep(AppState nextState) {
   dashboard.setGear(Dashboard::Gear::P);
   dashboard.setSpeed(0);
   dashboard.setHornPressed(false);
+  dashboard.setTouch(false, 0, 0);
   dashboard.setToioBattery(-1);
   showStatus("SLEEP", "Push Button to wake", Dashboard::Tone::INFO);
   M5.Display.setBrightness(0);
@@ -442,9 +498,9 @@ void loop(void)
       if (spinning) {
         spinInPlace(true, SPIN_SPEED);
       } else if (buttonBlue.isPressed()) {
-        driveToward(speedGear == SpeedGear::HI ? FORWARD_THROTTLE_HIGH : FORWARD_THROTTLE_LOW, stickX);
+        driveToward(forwardThrottle(), stickX);
       } else if (buttonRed.isPressed()) {
-        driveToward(speedGear == SpeedGear::HI ? BACKWARD_THROTTLE_HIGH : BACKWARD_THROTTLE_LOW, stickX);
+        driveToward(backwardThrottle(), stickX);
       } else if (slowSpinning) {
         spinInPlace(stickX * SLOW_SPIN_DIRECTION > 0, SLOW_SPIN_SPEED);
       } else {
@@ -456,6 +512,7 @@ void loop(void)
       // 接続は数秒止まることがあるので、toioが止まっているときだけ
       // wasPressed() は M5.update() ごとに消え、50msごとの制御周期では見逃すので、押しているかの変化で見る
       auto touch = M5.Touch.getDetail();
+      dashboard.setTouch(touch.isPressed(), touch.x, touch.y); // 触れているボタンを押し込んだ見た目にする
       bool shovelAreaTouched = touch.isPressed() && dashboard.isShovelHit(touch.x, touch.y);
       if (shovelAreaTouched && !shovelAreaWasTouched) {
         shovel.startSearch();
@@ -468,7 +525,7 @@ void loop(void)
       steeringAreaWasTouched = steeringAreaTouched;
       bool gearAreaTouched = touch.isPressed() && dashboard.isGearHit(touch.x, touch.y);
       if (gearAreaTouched && !gearAreaWasTouched) {
-        toggleSpeedGear();
+        cycleSpeedGear();
       }
       gearAreaWasTouched = gearAreaTouched;
       bool toioStopped = !spinning && !slowSpinning && currentThrottle == 0;
