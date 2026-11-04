@@ -294,8 +294,8 @@
 <text class="svg-muted" x="96.0" y="152.0" text-anchor="middle">1.5V</text>
 <rect class="batt-cell" x="116" y="130" width="28" height="36" rx="3"/>
 <text class="svg-muted" x="130.0" y="152.0" text-anchor="middle">1.5V</text>
-<text class="svg-text" x="40" y="94" font-weight="600">単四電池×3（スイッチ付き電池ボックス）</text>
-<text class="svg-muted" x="40" y="110">書き込むときはスイッチを切る</text>
+<text class="svg-text" x="40" y="94" font-weight="600">単四電池×3（電池ボックス）</text>
+<text class="svg-muted" x="40" y="110">書き込むとき・使い終わったら赤い線を抜く</text>
 <path class="outline" d="M158 138 L 216.0 138 L 216.0 340 L 174 340"/><path class="w w-red" d="M158 138 L 216.0 138 L 216.0 340 L 174 340"/>
 <path class="outline" d="M158 158 L 228.0 158 L 228.0 360 L 174 360"/><path class="w w-black" d="M158 158 L 228.0 158 L 228.0 360 L 174 360"/>
 <text class="svg-mono" x="164" y="134">+</text>

@@ -7,6 +7,13 @@
 constexpr uint8_t SENSOR_PIN = 32;
 constexpr uint8_t SENSOR_POWER_PIN = 26;
 constexpr uint32_t PRINT_INTERVAL_MS = 50;
+
+// 本体の LED（G27）を押した強さで光らせる。電池で動かして Serial を見られないときの確認用
+constexpr uint8_t LED_PIN = 27;
+constexpr int LED_IDLE_MAX_MV = 300;  // これ未満は押していない扱い。暗い青で電源が入っていることだけ示す
+constexpr int LED_FULL_MV = 2900;     // これ以上は頭打ち。赤にする
+constexpr uint8_t LED_BRIGHTNESS = 40; // 0〜255。まぶしくないよう控えめにする
+constexpr uint8_t LED_IDLE_BLUE = 8;
 constexpr int SAMPLES = 8; // 1回の表示ごとに平均をとる回数。値のちらつきを抑える
 
 int minMv = INT32_MAX;
@@ -24,6 +31,20 @@ int readSensorMv(int* raw)
     }
     *raw = sumRaw / SAMPLES;
     return sumMv / SAMPLES;
+}
+
+// 押していなければ暗い青、押した強さに合わせて緑 → 黄 → 赤
+void showPressureOnLed(int mv)
+{
+    if (mv < LED_IDLE_MAX_MV)
+    {
+        neopixelWrite(LED_PIN, 0, 0, LED_IDLE_BLUE);
+        return;
+    }
+    int level = constrain(map(mv, LED_IDLE_MAX_MV, LED_FULL_MV, 0, 510), 0, 510);
+    uint8_t red = min(level, 255) * LED_BRIGHTNESS / 255;
+    uint8_t green = min(510 - level, 255) * LED_BRIGHTNESS / 255;
+    neopixelWrite(LED_PIN, red, green, 0);
 }
 
 void resetMinMax()
@@ -68,4 +89,5 @@ void loop()
     minMv = min(minMv, mv);
     maxMv = max(maxMv, mv);
     Serial.printf("%d,%d,%d,%d\n", raw, mv, minMv, maxMv);
+    showPressureOnLed(mv);
 }

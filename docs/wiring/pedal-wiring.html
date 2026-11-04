@@ -237,9 +237,9 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
           <tr><td>抵抗 6.8kΩ（1/4W）</td><td>1</td><td>B のときだけ</td></tr>
           <tr><td>ブレッドボード（小さいもの）</td><td>1</td><td>センサー・抵抗・ケーブルをつなぐ</td></tr>
           <tr><td>ジャンパワイヤ（オス‐オス）</td><td>2〜3</td><td>A では ATOM Lite のピン列（メス）の 3V3 からブレッドボードへ</td></tr>
-          <tr><td>単四電池ボックス 3本用（スイッチ付き）</td><td>1</td><td>C のとき。ATOM Lite の右のピン列の 5V と GND へ。ピン列はメスなので、リード線の先にオスピンを付ける</td></tr>
+          <tr><td>単四電池ボックス 3本用</td><td>1</td><td>C のとき。スイッチはなくてよい（線の抜き差しで切る）。ATOM Lite の右のピン列の 5V と GND へ。ピン列はメスなので、リード線の先にオスピンを付ける</td></tr>
           <tr><td>単四アルカリ電池</td><td>3</td><td>C のとき。新品で約4.8V</td></tr>
-          <tr><td>USB-C ケーブル</td><td>1</td><td>書き込みと Serial 用。つなぐ前に電池ボックスのスイッチを切る</td></tr>
+          <tr><td>USB-C ケーブル</td><td>1</td><td>書き込みと Serial 用。つなぐ前に電池の赤い線を 5V ピンから抜く</td></tr>
         </tbody>
       </table>
     </section>
@@ -580,8 +580,8 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
 <text class="svg-muted" x="96.0" y="152.0" text-anchor="middle">1.5V</text>
 <rect class="batt-cell" x="116" y="130" width="28" height="36" rx="3"/>
 <text class="svg-muted" x="130.0" y="152.0" text-anchor="middle">1.5V</text>
-<text class="svg-text" x="40" y="94" font-weight="600">単四電池×3（スイッチ付き電池ボックス）</text>
-<text class="svg-muted" x="40" y="110">書き込むときはスイッチを切る</text>
+<text class="svg-text" x="40" y="94" font-weight="600">単四電池×3（電池ボックス）</text>
+<text class="svg-muted" x="40" y="110">書き込むとき・使い終わったら赤い線を抜く</text>
 <path class="outline" d="M158 138 L 216.0 138 L 216.0 340 L 174 340"/><path class="w w-red" d="M158 138 L 216.0 138 L 216.0 340 L 174 340"/>
 <path class="outline" d="M158 158 L 228.0 158 L 228.0 360 L 174 360"/><path class="w w-black" d="M158 158 L 228.0 158 L 228.0 360 L 174 360"/>
 <text class="svg-mono" x="164" y="134">+</text>
@@ -619,12 +619,12 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
       <li>10kΩ を <span class="mono">b9</span> と <span class="mono">b15</span> に挿す</li>
       <li>Grove の黄（G26）を <span class="mono">d8</span>、白（G32）を <span class="mono">d9</span>、黒（GND）を <span class="mono">d15</span> へ</li>
       <li>Grove の赤（5V）は使わない。電池の＋とつながるので、先を必ず絶縁する</li>
-      <li>電池ボックスのスイッチを切った状態で、赤いリード線を右のピン列の <span class="mono">5V</span>、黒を <span class="mono">GND</span> へ</li>
+      <li>電池ボックスの黒いリード線を右のピン列の <span class="mono">GND</span>、最後に赤を <span class="mono">5V</span> へ挿す。赤を挿すと電源が入る</li>
     </ol>
     <p>G26 はファームで HIGH にして約3.3Vを出します。センサーに流れるのは 0.3mA 以下なので GPIO で足ります。G32 にかかるのも3.3Vまでで、値の出方は A と同じです。</p>
     <div class="warn">
       <strong>電池をつないだまま USB をつながない。</strong>
-      USB の 5V が電池に流れ込み、アルカリ電池の液漏れや発熱の原因になります。書き込むときは電池ボックスのスイッチを切ってから USB をつなぎます。電池が減って約4.3Vを下回ると、ATOM Lite が動かなくなることがあります。
+      USB の 5V が電池に流れ込み、アルカリ電池の液漏れや発熱の原因になります。書き込むときは、電池の赤い線を 5V ピンから抜いてから USB をつなぎます。使い終わったときも赤い線を抜きます（つないだままだと電池が減り続けます）。電池が減って約4.3Vを下回ると、ATOM Lite が動かなくなることがあります。
     </div>
     <h3>A. 3.3V から電源をとる</h3>
     <div class="diagram"><svg class="bbd" viewBox="0 0 722 545" role="img" aria-label="ペダル圧力センサー 配線A（3.3Vから電源をとる）">
@@ -1347,10 +1347,11 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
     <section class="card">
       <h3>つないだら</h3>
       <ol>
-        <li>電池ボックスのスイッチを切ってから、ATOM Lite を USB でつなぐ</li>
+        <li>電池の赤い線を 5V ピンから抜いてから、ATOM Lite を USB でつなぐ</li>
         <li><span class="mono">pio run -e pedal -t upload</span> で書き込む</li>
         <li><span class="mono">pio device monitor -e pedal</span> で値を見る</li>
         <li>踏んでいない・軽く踏む・強く踏むで mV を比べる。最大が 3000mV を超えていないか確かめる</li>
+        <li>電池で動かしたときは本体の LED で確かめる。押していないと暗い青、押すほど緑 → 黄 → 赤に変わる</li>
       </ol>
       <p>10kΩ は、このセンサーの 30g〜1kg の範囲を 0.5〜3V に広げられる値です。</p>
     </section>
