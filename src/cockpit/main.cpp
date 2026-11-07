@@ -15,7 +15,13 @@ constexpr uint8_t BUTTON_RED_PIN = 9;  // Port B
 GpioButton buttonBlue(BUTTON_BLUE_PIN);
 GpioButton buttonRed(BUTTON_RED_PIN);
 Joystick joystick;
-bool joystickAvailable = false; // 起動時にJoyStickが応答したか
+bool joystickAvailable = false; // JoyStickが応答したか。見つからなければ見つかるまで探し続ける
+// 電源を入れた直後は JoyStick のマイコンが CoreS3 より遅れて起きるので、起動時はこの時間まで探し直す
+// （書き込み直後は JoyStick に電気が通ったままなのですぐ見つかるが、電源を入れ直したときは1回目では見つからないことがある）
+constexpr uint32_t JOYSTICK_BOOT_WAIT_MS = 3000;
+constexpr uint32_t JOYSTICK_RETRY_MS = 100;      // 起動時に探し直す間隔
+constexpr uint32_t JOYSTICK_SEARCH_INTERVAL_MS = 1000; // 起動後も見つかっていなければ、この間隔で探す
+uint32_t lastJoystickSearchMs = 0;
 
 Toio toio;
 ToioCore* toiocore = nullptr;
@@ -211,6 +217,26 @@ Dashboard::SpeedGear toDashboardGear(SpeedGear gear) {
   }
 }
 
+// JoyStickを探す。見つかったらライトを消し、スティックの中心を測り直す
+// @param firstTry true なら begin() 直後なので、I2C を初期化し直さずに応答だけ確かめる
+bool searchJoystick(bool firstTry) {
+  if (joystickAvailable) {
+    return true;
+  }
+  lastJoystickSearchMs = millis();
+  if (!firstTry && !joystick.reconnect()) {
+    return false;
+  }
+  if (!joystick.setRgbColor(0)) {
+    return false;
+  }
+  // 中心は個体差やずれがあるので、触れていないときの値を中心にする（ずれていると勝手に回ったりアームが動いたりする）
+  joystick.calibrateCenter();
+  joystickAvailable = true;
+  Serial.printf("[joystick] found after %lu ms\n", (unsigned long)millis());
+  return true;
+}
+
 void setup(void)
 {
   auto cfg = M5.config();
@@ -222,11 +248,12 @@ void setup(void)
   joyCfg.sda = M5.getPin(m5::pin_name_t::port_a_sda);
   joyCfg.scl = M5.getPin(m5::pin_name_t::port_a_scl);
   joyCfg.yCalibration = {200, 32390, 65380}; // 実測値。中心は起動時に測り直す
-  joystickAvailable = joystick.begin(joyCfg);
-  if (joystickAvailable) {
-    joystick.setRgbColor(0);
-    // 中心は個体差やずれがあるので、触れていない起動直後の値を中心にする（ずれていると勝手に回ったりアームが動いたりする）
-    joystick.calibrateCenter();
+  joystick.begin(joyCfg);
+  uint32_t joystickWaitStart = millis();
+  bool firstTry = true;
+  while (!searchJoystick(firstTry) && millis() - joystickWaitStart < JOYSTICK_BOOT_WAIT_MS) {
+    firstTry = false;
+    delay(JOYSTICK_RETRY_MS);
   }
 
   normalBrightness = M5.Display.getBrightness();
@@ -444,10 +471,13 @@ void startRunning() {
   state = AppState::RUNNING;
 }
 
-// JoyStickがないときはI2Cを読まない（押されていない扱いのまま）
+// JoyStickがないときはI2Cを読まない（押されていない扱いのまま）。代わりに一定の間隔で探す
 void updateInputs() {
   buttonBlue.update();
   buttonRed.update();
+  if (!joystickAvailable && millis() - lastJoystickSearchMs >= JOYSTICK_SEARCH_INTERVAL_MS) {
+    searchJoystick(false);
+  }
   if (joystickAvailable) {
     joystick.update();
     logJoystickFailures();
@@ -507,7 +537,9 @@ void loop(void)
       int rawX = joystickAvailable ? joystick.x() : 0;
       int rawY = joystickAvailable ? joystick.y() : 0;
       // 読み取りに失敗している間は、画面の上の状態表示で知らせる
-      if (joystickAvailable && !joystick.healthy()) {
+      if (!joystickAvailable) {
+        dashboard.setStatus("NO JOYSTICK", "", Dashboard::Tone::WARN);
+      } else if (!joystick.healthy()) {
         dashboard.setStatus("JOYSTICK ERR", "", Dashboard::Tone::WARN);
       } else {
         dashboard.setStatus("RUNNING", "", Dashboard::Tone::OK);

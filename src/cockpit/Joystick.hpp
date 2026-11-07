@@ -30,6 +30,8 @@ public:
     };
 
     bool begin(const Config& config);
+    /// I2C を初期化し直して、もう一度 JoyStick を探す。begin() で見つからなかったときに呼び直す
+    bool reconnect();
     /// 値を読み直す。I2C の読み取りに失敗したら、操作していない扱い（中央・押していない）にして false を返す
     /// 失敗が続いたら I2C を初期化し直して立て直す
     bool update();

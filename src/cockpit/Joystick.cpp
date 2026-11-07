@@ -16,6 +16,12 @@ bool Joystick::begin(const Config& config)
         _config.scl);
 }
 
+bool Joystick::reconnect()
+{
+    _config.wire->end();
+    return _unit.begin(_config.wire, _config.i2cAddress, _config.sda, _config.scl);
+}
+
 bool Joystick::readRegister(uint8_t reg, uint8_t* buffer, uint8_t length)
 {
     TwoWire* wire = _config.wire;
