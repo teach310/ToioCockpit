@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-// cockpit (Core2) と shovel (AtomS3) の BLE 通信の決まりごと
+// cockpit と shovel の BLE 通信の決まりごと
 // 変えるときは送る側 (cockpit) と受ける側 (shovel) を同じ PR で直す
 namespace ShovelProtocol
 {
