@@ -9,10 +9,18 @@
 Dashboard dashboard(M5.Display);
 ShovelLink shovel;
 
-// Dual Button を M5GO Bottom2 の Port B につなぐ。G36 は入力専用で中の引き上げ抵抗を使えない
+// Dual Button を Port B につなぐ。機種は platformio.ini の env の define で選ぶ
+#if defined(COCKPIT_CORE2)
+// M5GO Bottom2 の Port B。G36 は入力専用で中の引き上げ抵抗を使えない
 // CoreS3 では INPUT のまま読めていたので、引き上げ抵抗は Dual Button 側にあると考えている
 constexpr uint8_t BUTTON_BLUE_PIN = 36; // Port B の白
 constexpr uint8_t BUTTON_RED_PIN = 26;  // Port B の黄
+#elif defined(COCKPIT_CORES3)
+constexpr uint8_t BUTTON_BLUE_PIN = 8; // Port B の白
+constexpr uint8_t BUTTON_RED_PIN = 9;  // Port B の黄
+#else
+#error "cockpit の機種が決まっていない。platformio.ini の env で COCKPIT_CORE2 か COCKPIT_CORES3 を define する"
+#endif
 
 GpioButton buttonBlue(BUTTON_BLUE_PIN);
 GpioButton buttonRed(BUTTON_RED_PIN);
