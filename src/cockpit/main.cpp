@@ -72,6 +72,9 @@ constexpr int8_t BACKWARD_THROTTLE_HIGH = -70; // 後ろ向きは見えにくい
 // 速くなるときは ACCEL、遅くなるとき（ボタンを離したとき、前進と後退を切り替えるとき）は DECEL
 constexpr int ACCEL_PER_SEC = 80;  // 加速の速さ。1秒あたりに上がる速さ
 constexpr int DECEL_PER_SEC = 140; // 減速の速さ。1秒あたりに下がる速さ
+// 加速・減速は前回からたった時間で計算する。画面の描き直しなどで制御の周期が CONTROL_INTERVAL_MS より延びても速さが変わらないようにするため
+// ただし止まっていた後などで間があいても一気に変わらないよう、1回に使う時間はここまでにする
+constexpr uint32_t MAX_THROTTLE_STEP_MS = 200;
 // 走っているときのハンドルの切り方。メーター右下の STEER 表示をタッチして切り替え、本体に保存する
 //   TILT : 本体の傾きで曲がる
 //   STICK: JoyStick の左右で曲がる
@@ -85,7 +88,9 @@ constexpr uint8_t SPIN_SPEED = 100;  // JoyStickを押し込んだときの、�
 constexpr uint8_t SLOW_SPIN_SPEED = 8; // toioのモーターが回る一番遅い速さ。8未満だと回らない（toio通信仕様）
 constexpr int SLOW_SPIN_DIRECTION = 1;      // 右に倒して左に回るときは -1 にする
 
-int8_t currentThrottle = 0;
+int8_t currentThrottle = 0; // toio に送る速さ。throttleAmount を丸めた値
+float throttleAmount = 0;   // 加速・減速を時間で計算するための、端数を含む今の速さ
+uint32_t lastThrottleUpdateMs = 0;
 uint32_t lastControlMs = 0;
 
 // ERRORになった時刻と、再試行で戻る先の状態
@@ -182,26 +187,29 @@ void sendSpin(bool clockwise, uint8_t speed) {
   lastSpinSpeed = speed;
 }
 
-// 今の速さを targetThrottle へ CONTROL_INTERVAL_MS の分だけ近づける
+void resetThrottle() {
+  currentThrottle = 0;
+  throttleAmount = 0;
+  lastThrottleUpdateMs = millis();
+}
+
+// 今の速さを targetThrottle へ、前回からたった時間の分だけ近づける
 // 向きが変わるときは、いったん 0 まで DECEL で減速してから ACCEL で加速する
 void updateCurrentThrottle(int8_t targetThrottle) {
-  if (currentThrottle == targetThrottle) {
-    return;
-  }
-  bool sameDirection = currentThrottle == 0 || (currentThrottle > 0) == (targetThrottle > 0);
-  bool speedingUp = sameDirection && abs(targetThrottle) > abs(currentThrottle);
-  int8_t step = (speedingUp ? ACCEL_PER_SEC : DECEL_PER_SEC) * (int)CONTROL_INTERVAL_MS / 1000;
-  if (currentThrottle < targetThrottle) {
-    currentThrottle += step;
-    if (currentThrottle > targetThrottle) {
-      currentThrottle = targetThrottle;
-    }
+  uint32_t now = millis();
+  uint32_t elapsedMs = min(now - lastThrottleUpdateMs, MAX_THROTTLE_STEP_MS);
+  lastThrottleUpdateMs = now;
+
+  float target = targetThrottle;
+  bool sameDirection = throttleAmount == 0 || (throttleAmount > 0) == (target > 0);
+  bool speedingUp = sameDirection && fabsf(target) > fabsf(throttleAmount);
+  float step = (speedingUp ? ACCEL_PER_SEC : DECEL_PER_SEC) * elapsedMs / 1000.0f;
+  if (fabsf(target - throttleAmount) <= step) {
+    throttleAmount = target;
   } else {
-    currentThrottle -= step;
-    if (currentThrottle < targetThrottle) {
-      currentThrottle = targetThrottle;
-    }
+    throttleAmount += target > throttleAmount ? step : -step;
   }
+  currentThrottle = static_cast<int8_t>(lroundf(throttleAmount));
 }
 
 // 状態が変わったときの表示。SCANNINGのように次の処理で止まる状態があるので、すぐ描く
@@ -357,7 +365,7 @@ void toggleSteeringMode() {
 
 // 左右のモーターを逆回転させてその場で回転する
 void spinInPlace(bool clockwise, uint8_t speed) {
-  currentThrottle = 0;
+  resetThrottle();
   sendSpin(clockwise, speed);
 }
 
@@ -470,7 +478,7 @@ void wakeUp() {
 // 接続できたらRUNNINGに入る。前回の接続で残ったモーター制御の状態は初期化する
 void startRunning() {
   autoRetryCount = 0;
-  currentThrottle = 0;
+  resetThrottle();
   lastMotorMode = MotorMode::NONE;
   lastSoundMode = SoundMode::NONE;
   lastControlMs = 0;
