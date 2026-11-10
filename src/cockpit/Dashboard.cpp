@@ -57,6 +57,8 @@ namespace
     constexpr int GEAR_LIST_STEP = 22;
 
     constexpr uint32_t FRAME_INTERVAL_MS = 66; // 画面全体の転送に時間がかかるので約15fpsに抑える
+    constexpr uint32_t DRAW_TASK_STACK = 8192;
+    constexpr uint32_t DRAW_TASK_POLL_MS = 5; // 描き直し用のタスクが変化を確かめる間隔
 
     uint16_t lerpColor(uint16_t a, uint16_t b, float t)
     {
@@ -95,6 +97,41 @@ void Dashboard::begin()
     _canvas.setPsram(true);
     _canvas.createSprite(_display.width(), _display.height());
     _dirty = true;
+    _lock = xSemaphoreCreateMutex();
+}
+
+void Dashboard::startDrawTask()
+{
+    // BLE の処理は core 0 で動いているが優先度が高いので、描き直しを core 0 の低い優先度で動かしても BLE は遅れない
+    // Arduino の loop()（制御）は core 1 なので、描き直しに待たされない
+    xTaskCreatePinnedToCore(drawTask, "dashboard", DRAW_TASK_STACK, this, 1, nullptr, 0);
+}
+
+void Dashboard::drawTask(void* arg)
+{
+    auto* self = static_cast<Dashboard*>(arg);
+    for (;;)
+    {
+        self->draw();
+        vTaskDelay(pdMS_TO_TICKS(DRAW_TASK_POLL_MS));
+    }
+}
+
+void Dashboard::sleep()
+{
+    xSemaphoreTake(_lock, portMAX_DELAY);
+    _asleep = true;
+    _display.sleep();
+    xSemaphoreGive(_lock);
+}
+
+void Dashboard::wake()
+{
+    xSemaphoreTake(_lock, portMAX_DELAY);
+    _display.wakeup();
+    _asleep = false;
+    _dirty = true;
+    xSemaphoreGive(_lock);
 }
 
 void Dashboard::setStatus(const char* status, const char* detail, Tone tone)
@@ -253,6 +290,16 @@ bool Dashboard::isHornHit(int x, int y) const
 }
 
 void Dashboard::draw(bool force)
+{
+    xSemaphoreTake(_lock, portMAX_DELAY);
+    if (!_asleep)
+    {
+        drawLocked(force);
+    }
+    xSemaphoreGive(_lock);
+}
+
+void Dashboard::drawLocked(bool force)
 {
     uint32_t now = millis();
     if (!force && (!_dirty || now - _lastDrawMs < FRAME_INTERVAL_MS))
