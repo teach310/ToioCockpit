@@ -11,12 +11,15 @@ M5Stack CoreS3 を運転席（cockpit）にして toio を操作するプロジ�
 |---|---|---|---|
 | `cockpit` | `src/cockpit/` | CoreS3 | 運転席。toio の操作とメーターパネル表示（メイン） |
 | `shovel` | `src/shovel/` | AtomS3 | toio に載せるショベル。Servo Kit 180° でアームを動かす (#13) |
-| `pedal` | `src/pedal/` | ATOM Lite | 圧力センサーのアクセル (#12)。今はセンサーの値を Serial と本体の LED に出すテストだけ |
+| `pedal` | `src/pedal/` | CoreS3 | 圧力センサーのアクセル (#12)。今はセンサーの値を Serial と画面に出すテストだけ |
 
 - 各 env は `build_src_filter = +<役割/>` で自分のフォルダだけをビルドする。`setup()` / `loop()` を持つファイルが入口
 - 複数の env で使うコード（BLE の UUID やデータの形など）は `lib/` に置く。通信の決まりごとを変えるときは、送る側と受ける側を同じ PR で直す
   - `lib/ShovelProtocol/`: cockpit と shovel の BLE の決まりごと
-- pedal（ATOM Lite）は単四電池3本を 5V ピンにつないで動かす。センサーの電源は G26 を HIGH にして出し、G32 で読む（配線C: `docs/wiring/pedal-c.json`）。電池ボックスにスイッチはないので、書き込むとき（USB をつなぐと電池に逆流する）と使い終わったときは電池の赤い線を 5V ピンから抜く。本体の LED は押した強さで暗い青 → 緑 → 黄 → 赤に変わる
+- pedal（CoreS3）は内蔵の電池で動かす。感圧センサーと 10kΩ を Port B につなぎ、黄（G9）を HIGH にしてセンサーの電源を出し、白（G8）で読む。ブレッドボードの並びは配線C（`docs/wiring/pedal-c.json`）の電池ボックスを除いた部分と同じで、Grove ケーブルを ATOM Lite の代わりに CoreS3 の Port B に挿す。Port B の赤（5V）は使わず絶縁する
+  - 配線図とまとめページ（`pedal-a/b/c`、`pedal-wiring.html`）は ATOM Lite で試したときのもの
+  - Port A は I2C 用で、基板の中で 3.3V に引っぱられている（Core2 では 2.2kΩ。10kΩ でつなぐと押していなくても約2.7Vになった）。アナログのセンサーは Port B につなぐ
+  - cockpit を Core2 に替えて空いた CoreS3 を使う（cockpit の置き換えは別の PR）。電源の問題が片付けば ATOM のほうが pedal に向いている
 - 配線図は `docs/wiring/` に置く。ブレッドボードの配線図は、ユーザー全体の skill `breadboard-diagram` で配置の JSON（`pedal-a.json` など）から SVG を作る。配線を変えたら JSON を直して作り直す。`pedal-wiring.html` はペダルの配線をまとめたページ
 - 同じ役割の機体が複数台あるときは、`extends` で env を継承し、`build_flags`（例: `-DSHOVEL_ID=1`）と `upload_port` で台ごとに分ける
 
