@@ -43,6 +43,7 @@ pio device monitor -e pedal       # pedal の Serial を見る
 - shovel とは `ShovelLink` で BLE 接続する。shovel は使わない日も多いので探し続けない。toio とつないだとき、メーター左下の SHOVEL 表示をタッチしたとき、途中で切れたときに3回だけ探す。接続は toio が止まっているときだけ行う（接続中は最大数秒止まるため）
 - Port B: 青ボタン（前進）は白、赤ボタン（後退）は黄の線。Core2（M5GO Bottom2）は G36・G26、CoreS3 は G8・G9。G36 は入力専用で中の引き上げ抵抗を使えない。CoreS3 では INPUT のまま読めていたので、引き上げ抵抗は Dual Button 側にあると考えている
 - 速さのギア: SLOW（前進40・後退30）、LOW（前進70・後退50）、HIGH（前進100・後退70）の3段。メーター左上のボタンをタッチして SLOW → LOW → HIGH → SLOW の順に切り替え、Preferences に保存する
+- 加速と減速: 目標の速さへ少しずつ近づける。1秒あたり加速 80・減速 140 で、前進と後退を切り替えるときはいったん 0 まで減速する（toio-cockpit-web と同じ）
 - タッチで操作できるところ（速さのギア・HORN・SHOVEL・STEER）はボタンの見た目にする（影で浮かせ、押している間は沈める）。押せない表示（P R N D S など）はボタンにしない
 - ハンドル: 本体の傾き（IMU の accel.x、TILT）か JoyStick の左右（STICK）。メーター右下の STEER 表示をタッチして切り替え、Preferences に保存する
 - タッチパネル: メーター中央の HORN ボタン

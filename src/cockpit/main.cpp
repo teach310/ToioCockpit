@@ -56,7 +56,7 @@ constexpr uint8_t MAX_AUTO_RETRIES = 3;       // 放置時の電池消費を抑�
 constexpr uint8_t SCAN_DURATION_SEC = 3;
 constexpr uint32_t JOYSTICK_WARNING_MS = 2000; // JoyStickが見つからないときの警告の表示時間
 
-// 走行のパラメータ。スロットルの変化量は CONTROL_INTERVAL_MS ごとの値
+// 走行のパラメータ
 // 速さのギア。メーター左上のボタンをタッチして SLOW → LOW → HIGH → SLOW の順に切り替え、本体に保存する
 // 数字は本体に保存する値。前からある LO / HI の値は変えない（LOW / HIGH は Arduino のマクロとぶつかるので使わない）
 enum class SpeedGear : uint8_t { LO = 0, HI = 1, SLOW = 2 };
@@ -68,8 +68,10 @@ constexpr int8_t FORWARD_THROTTLE_LOW = 70;
 constexpr int8_t BACKWARD_THROTTLE_LOW = -50;
 constexpr int8_t FORWARD_THROTTLE_HIGH = 100; // toio の drive() で出せる一番速い速さ
 constexpr int8_t BACKWARD_THROTTLE_HIGH = -70; // 後ろ向きは見えにくいので前進より控えめにする
-constexpr int8_t ACCEL_STEP = 30;    // ボタンを押している間の加速
-constexpr int8_t DECEL_STEP = 10;    // ボタンを離したときの減速
+// 今の速さを目標の速さへ少しずつ近づけて、なめらかに加速・減速する（toio-cockpit-web と同じ値）
+// 速くなるときは ACCEL、遅くなるとき（ボタンを離したとき、前進と後退を切り替えるとき）は DECEL
+constexpr int ACCEL_PER_SEC = 80;  // 加速の速さ。1秒あたりに上がる速さ
+constexpr int DECEL_PER_SEC = 140; // 減速の速さ。1秒あたりに下がる速さ
 // 走っているときのハンドルの切り方。メーター右下の STEER 表示をタッチして切り替え、本体に保存する
 //   TILT : 本体の傾きで曲がる
 //   STICK: JoyStick の左右で曲がる
@@ -180,11 +182,15 @@ void sendSpin(bool clockwise, uint8_t speed) {
   lastSpinSpeed = speed;
 }
 
-// 引数で渡した一定単位ごとに近づける
-void updateCurrentThrottle(int8_t targetThrottle, int8_t step) {
+// 今の速さを targetThrottle へ CONTROL_INTERVAL_MS の分だけ近づける
+// 向きが変わるときは、いったん 0 まで DECEL で減速してから ACCEL で加速する
+void updateCurrentThrottle(int8_t targetThrottle) {
   if (currentThrottle == targetThrottle) {
     return;
   }
+  bool sameDirection = currentThrottle == 0 || (currentThrottle > 0) == (targetThrottle > 0);
+  bool speedingUp = sameDirection && abs(targetThrottle) > abs(currentThrottle);
+  int8_t step = (speedingUp ? ACCEL_PER_SEC : DECEL_PER_SEC) * (int)CONTROL_INTERVAL_MS / 1000;
   if (currentThrottle < targetThrottle) {
     currentThrottle += step;
     if (currentThrottle > targetThrottle) {
@@ -290,7 +296,7 @@ void setup(void)
 
 // targetThrottle に向けて加速しながら、steeringMode に応じて本体の傾きか JoyStick の左右で曲がる
 void driveToward(int8_t targetThrottle, int stickX) {
-  updateCurrentThrottle(targetThrottle, ACCEL_STEP);
+  updateCurrentThrottle(targetThrottle);
   int8_t steering;
   if (steeringMode == SteeringMode::STICK) {
     steering = (int8_t)(stickX / 100.0f * STEERING_GAIN); // stickX は -100～100
@@ -573,7 +579,7 @@ void loop(void)
       } else if (slowSpinning) {
         spinInPlace(stickX * SLOW_SPIN_DIRECTION > 0, SLOW_SPIN_SPEED);
       } else {
-        updateCurrentThrottle(0, DECEL_STEP);
+        updateCurrentThrottle(0);
         sendDrive(currentThrottle, 0);
       }
 
