@@ -5,6 +5,8 @@
 
 // 車のメーターパネル風の画面
 // 値をセットして draw() を呼ぶと、変化があったときだけ画面全体を描き直す
+// startDrawTask() を呼ぶと、制御とは別のコアのタスクで描き直し続ける。画面全体の描き直しは
+// Core2 で1回 130〜150ms かかるので、制御のループで描くとその間モーターの制御が止まってしまうため
 class Dashboard
 {
 public:
@@ -47,6 +49,11 @@ public:
 
     /// @param force true のときは描き直しの間隔を待たずにすぐ描く
     void draw(bool force = false);
+    /// 描き直し用のタスクを始める。begin() の後に1回呼ぶ
+    void startDrawTask();
+    /// 画面を消す・戻す。描き直し用のタスクが描いている途中に画面を消さないよう、draw() と同じ鍵を使う
+    void sleep();
+    void wake();
 
 private:
     void drawStatusBar();
@@ -63,6 +70,8 @@ private:
     /// @return 中身を描くときに y に足す量（押されているときは沈んだ分だけ下にずらす）
     int drawButton(int x, int y, int w, int h, bool pressed, uint16_t accent);
 
+    void drawLocked(bool force);
+    static void drawTask(void* arg);
     enum class TouchedButton { NONE, GEAR, SHOVEL, STEER };
 
     M5GFX& _display;
@@ -87,6 +96,8 @@ private:
 
     bool _dirty = true;
     uint32_t _lastDrawMs = 0;
+    SemaphoreHandle_t _lock = nullptr; // 画面（SPI）を使う処理を1つずつにする鍵
+    bool _asleep = false;
 };
 
 #endif

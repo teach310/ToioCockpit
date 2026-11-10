@@ -1,5 +1,6 @@
 #include <M5Unified.h>
 #include <Toio.h>
+#include <NimBLEDevice.h>
 #include "GpioButton.hpp"
 #include "Joystick.hpp"
 #include "Dashboard.hpp"
@@ -46,7 +47,7 @@ enum class AppState {
 };
 AppState state = AppState::SCANNING;
 
-constexpr uint32_t CONTROL_INTERVAL_MS = 50;  // 入力読み取りとモーター制御の周期
+constexpr uint32_t CONTROL_INTERVAL_MS = 33;  // 入力読み取りとモーター制御の周期。約30回/秒
 constexpr uint32_t CORE_BATTERY_INTERVAL_MS = 2000; // 本体の電池残量を読む周期
 constexpr uint32_t RETRY_INTERVAL_MS = 5000;  // ERRORから自動で再試行するまでの時間
 constexpr uint32_t DIM_AFTER_MS = 90 * 1000;     // 触らないまま、この時間たったら画面を暗くする
@@ -56,7 +57,7 @@ constexpr uint8_t MAX_AUTO_RETRIES = 3;       // 放置時の電池消費を抑�
 constexpr uint8_t SCAN_DURATION_SEC = 3;
 constexpr uint32_t JOYSTICK_WARNING_MS = 2000; // JoyStickが見つからないときの警告の表示時間
 
-// 走行のパラメータ。スロットルの変化量は CONTROL_INTERVAL_MS ごとの値
+// 走行のパラメータ
 // 速さのギア。メーター左上のボタンをタッチして SLOW → LOW → HIGH → SLOW の順に切り替え、本体に保存する
 // 数字は本体に保存する値。前からある LO / HI の値は変えない（LOW / HIGH は Arduino のマクロとぶつかるので使わない）
 enum class SpeedGear : uint8_t { LO = 0, HI = 1, SLOW = 2 };
@@ -68,8 +69,13 @@ constexpr int8_t FORWARD_THROTTLE_LOW = 70;
 constexpr int8_t BACKWARD_THROTTLE_LOW = -50;
 constexpr int8_t FORWARD_THROTTLE_HIGH = 100; // toio の drive() で出せる一番速い速さ
 constexpr int8_t BACKWARD_THROTTLE_HIGH = -70; // 後ろ向きは見えにくいので前進より控えめにする
-constexpr int8_t ACCEL_STEP = 30;    // ボタンを押している間の加速
-constexpr int8_t DECEL_STEP = 10;    // ボタンを離したときの減速
+// 今の速さを目標の速さへ少しずつ近づけて、なめらかに加速・減速する（toio-cockpit-web と同じ値）
+// 速くなるときは ACCEL、遅くなるとき（ボタンを離したとき、前進と後退を切り替えるとき）は DECEL
+constexpr int ACCEL_PER_SEC = 80;  // 加速の速さ。1秒あたりに上がる速さ
+constexpr int DECEL_PER_SEC = 140; // 減速の速さ。1秒あたりに下がる速さ
+// 加速・減速は前回からたった時間で計算する。画面の描き直しなどで制御の周期が CONTROL_INTERVAL_MS より延びても速さが変わらないようにするため
+// ただし止まっていた後などで間があいても一気に変わらないよう、1回に使う時間はここまでにする
+constexpr uint32_t MAX_THROTTLE_STEP_MS = 200;
 // 走っているときのハンドルの切り方。メーター右下の STEER 表示をタッチして切り替え、本体に保存する
 //   TILT : 本体の傾きで曲がる
 //   STICK: JoyStick の左右で曲がる
@@ -83,7 +89,9 @@ constexpr uint8_t SPIN_SPEED = 100;  // JoyStickを押し込んだときの、�
 constexpr uint8_t SLOW_SPIN_SPEED = 8; // toioのモーターが回る一番遅い速さ。8未満だと回らない（toio通信仕様）
 constexpr int SLOW_SPIN_DIRECTION = 1;      // 右に倒して左に回るときは -1 にする
 
-int8_t currentThrottle = 0;
+int8_t currentThrottle = 0; // toio に送る速さ。throttleAmount を丸めた値
+float throttleAmount = 0;   // 加速・減速を時間で計算するための、端数を含む今の速さ
+uint32_t lastThrottleUpdateMs = 0;
 uint32_t lastControlMs = 0;
 
 // ERRORになった時刻と、再試行で戻る先の状態
@@ -120,7 +128,7 @@ uint8_t BACKUP_SOUND[] = {
 };
 
 // ショベルのアーム。JoyStickを上下に倒している間、倒した量に応じて動く（離すとその位置で止まる）
-constexpr float ARM_STICK_SPEED = 10.0f; // 一番倒したときに CONTROL_INTERVAL_MS ごとに動く量。0から100まで約0.5秒
+constexpr float ARM_SPEED_PER_SEC = 150.0f; // 一番倒したときに1秒あたりに動く量。0から100まで約0.7秒
 constexpr int ARM_STICK_DIRECTION = 1;  // 上に倒して下がるときは -1 にする
 float armPosition = 0;                  // 0 = 一番下, 100 = 一番上
 bool shovelWasConnected = false;
@@ -159,11 +167,53 @@ void updateSound(SoundMode mode) {
   lastSoundMode = mode;
 }
 
+// toio のモーターの命令は、返事を待たずに送る（Write Without Response）
+// M5StackToio は返事を待つ書き方で送るので、加速中のように毎回速さが変わると1回ごとに待ちが入り、制御の周期が延びてしまう
+// toio とつないだときに、モーターの characteristic を自分で見つけておく。見つからなければライブラリで送る
+constexpr const char* TOIO_SERVICE_UUID = "10b20100-5b3b-4571-9508-cf3efcd7bbae";
+constexpr const char* TOIO_MOTOR_UUID = "10b20102-5b3b-4571-9508-cf3efcd7bbae";
+NimBLERemoteCharacteristic* motorCharacteristic = nullptr;
+
+void findMotorCharacteristic() {
+  motorCharacteristic = nullptr;
+  std::string address = toiocore->getAddress();
+  for (NimBLEClient* client : *NimBLEDevice::getClientList()) {
+    // ショベルとの接続も同じ一覧に入っているので、toio のアドレスで見分ける
+    if (!client->isConnected() || client->getPeerAddress().toString() != address) {
+      continue;
+    }
+    NimBLERemoteService* service = client->getService(TOIO_SERVICE_UUID);
+    if (service) {
+      motorCharacteristic = service->getCharacteristic(TOIO_MOTOR_UUID);
+    }
+    break;
+  }
+  if (!motorCharacteristic) {
+    Serial.println("[toio] motor characteristic not found. Send with the library instead");
+  }
+}
+
+// toio のモーター制御（時間指定なし）: 0x01, 左(0x01), 向き, 速さ, 右(0x02), 向き, 速さ。向きは 0x01 が前、0x02 が後ろ
+void writeMotor(bool leftForward, uint8_t leftSpeed, bool rightForward, uint8_t rightSpeed) {
+  uint8_t data[7] = {0x01, 0x01, uint8_t(leftForward ? 0x01 : 0x02), leftSpeed,
+                     0x02, uint8_t(rightForward ? 0x01 : 0x02), rightSpeed};
+  motorCharacteristic->writeValue(data, sizeof(data), false);
+}
+
 void sendDrive(int8_t throttle, int8_t steering) {
   if (lastMotorMode == MotorMode::DRIVE && lastThrottle == throttle && lastSteering == steering) {
     return;
   }
-  toiocore->drive(throttle, steering);
+  if (motorCharacteristic) {
+    // ToioCore::drive() と同じ計算。速さ 100 を toio のモーターの 115 にし、曲がる側の車輪を steering の分だけ遅くする
+    int clampedSteering = constrain(steering, -100, 100);
+    float speed = 115.0f * min(abs(throttle), 100) / 100.0f;
+    float leftSpeed = clampedSteering < 0 ? speed * (100 - abs(clampedSteering)) / 100.0f : speed;
+    float rightSpeed = clampedSteering > 0 ? speed * (100 - abs(clampedSteering)) / 100.0f : speed;
+    writeMotor(throttle >= 0, static_cast<uint8_t>(leftSpeed), throttle >= 0, static_cast<uint8_t>(rightSpeed));
+  } else {
+    toiocore->drive(throttle, steering);
+  }
   lastMotorMode = MotorMode::DRIVE;
   lastThrottle = throttle;
   lastSteering = steering;
@@ -174,28 +224,39 @@ void sendSpin(bool clockwise, uint8_t speed) {
   if (lastMotorMode == MotorMode::SPIN && lastSpinClockwise == clockwise && lastSpinSpeed == speed) {
     return;
   }
-  toiocore->controlMotor(clockwise, speed, !clockwise, speed);
+  if (motorCharacteristic) {
+    writeMotor(clockwise, speed, !clockwise, speed);
+  } else {
+    toiocore->controlMotor(clockwise, speed, !clockwise, speed);
+  }
   lastMotorMode = MotorMode::SPIN;
   lastSpinClockwise = clockwise;
   lastSpinSpeed = speed;
 }
 
-// 引数で渡した一定単位ごとに近づける
-void updateCurrentThrottle(int8_t targetThrottle, int8_t step) {
-  if (currentThrottle == targetThrottle) {
-    return;
-  }
-  if (currentThrottle < targetThrottle) {
-    currentThrottle += step;
-    if (currentThrottle > targetThrottle) {
-      currentThrottle = targetThrottle;
-    }
+void resetThrottle() {
+  currentThrottle = 0;
+  throttleAmount = 0;
+  lastThrottleUpdateMs = millis();
+}
+
+// 今の速さを targetThrottle へ、前回からたった時間の分だけ近づける
+// 向きが変わるときは、いったん 0 まで DECEL で減速してから ACCEL で加速する
+void updateCurrentThrottle(int8_t targetThrottle) {
+  uint32_t now = millis();
+  uint32_t elapsedMs = min(now - lastThrottleUpdateMs, MAX_THROTTLE_STEP_MS);
+  lastThrottleUpdateMs = now;
+
+  float target = targetThrottle;
+  bool sameDirection = throttleAmount == 0 || (throttleAmount > 0) == (target > 0);
+  bool speedingUp = sameDirection && fabsf(target) > fabsf(throttleAmount);
+  float step = (speedingUp ? ACCEL_PER_SEC : DECEL_PER_SEC) * elapsedMs / 1000.0f;
+  if (fabsf(target - throttleAmount) <= step) {
+    throttleAmount = target;
   } else {
-    currentThrottle -= step;
-    if (currentThrottle < targetThrottle) {
-      currentThrottle = targetThrottle;
-    }
+    throttleAmount += target > throttleAmount ? step : -step;
   }
+  currentThrottle = static_cast<int8_t>(lroundf(throttleAmount));
 }
 
 // 状態が変わったときの表示。SCANNINGのように次の処理で止まる状態があるので、すぐ描く
@@ -250,6 +311,7 @@ bool searchJoystick(bool firstTry) {
 void setup(void)
 {
   auto cfg = M5.config();
+  cfg.serial_baudrate = 115200; // 0 のままだと Core2 では Serial が始まらない（CoreS3 は USB 直結なので出ていた）
   M5.begin(cfg);
   buttonBlue.begin();
   buttonRed.begin();
@@ -270,6 +332,7 @@ void setup(void)
   preferences.begin("cockpit");
   steeringMode = static_cast<SteeringMode>(preferences.getUChar("steer", static_cast<uint8_t>(SteeringMode::TILT)));
   dashboard.begin();
+  dashboard.startDrawTask();
   dashboard.setStickSteering(steeringMode == SteeringMode::STICK);
   speedGear = static_cast<SpeedGear>(preferences.getUChar("gear", static_cast<uint8_t>(SpeedGear::LO)));
   if (speedGear != SpeedGear::LO && speedGear != SpeedGear::HI && speedGear != SpeedGear::SLOW) {
@@ -290,7 +353,7 @@ void setup(void)
 
 // targetThrottle に向けて加速しながら、steeringMode に応じて本体の傾きか JoyStick の左右で曲がる
 void driveToward(int8_t targetThrottle, int stickX) {
-  updateCurrentThrottle(targetThrottle, ACCEL_STEP);
+  updateCurrentThrottle(targetThrottle);
   int8_t steering;
   if (steeringMode == SteeringMode::STICK) {
     steering = (int8_t)(stickX / 100.0f * STEERING_GAIN); // stickX は -100～100
@@ -351,7 +414,7 @@ void toggleSteeringMode() {
 
 // 左右のモーターを逆回転させてその場で回転する
 void spinInPlace(bool clockwise, uint8_t speed) {
-  currentThrottle = 0;
+  resetThrottle();
   sendSpin(clockwise, speed);
 }
 
@@ -442,13 +505,13 @@ void enterSleep(AppState nextState) {
   dashboard.setToioBattery(-1);
   showStatus("SLEEP", "Push Button to wake", Dashboard::Tone::INFO);
   M5.Display.setBrightness(0);
-  M5.Display.sleep();
+  dashboard.sleep();
   wakeState = nextState;
   state = AppState::SLEEP;
 }
 
 void wakeUp() {
-  M5.Display.wakeup();
+  dashboard.wake();
   dimmed = false;
   M5.Display.setBrightness(normalBrightness);
   markActivity();
@@ -464,10 +527,11 @@ void wakeUp() {
 // 接続できたらRUNNINGに入る。前回の接続で残ったモーター制御の状態は初期化する
 void startRunning() {
   autoRetryCount = 0;
-  currentThrottle = 0;
+  resetThrottle();
   lastMotorMode = MotorMode::NONE;
   lastSoundMode = SoundMode::NONE;
   lastControlMs = 0;
+  findMotorCharacteristic();
   // toioの電池残量は最初に1回読み、あとは変化の通知で受け取る。通知は loop() の toiocore->_loop() の中で届く
   dashboard.setToioBattery(toiocore->getBatteryLevel());
   toiocore->onBattery([](uint8_t level) {
@@ -573,13 +637,13 @@ void loop(void)
       } else if (slowSpinning) {
         spinInPlace(stickX * SLOW_SPIN_DIRECTION > 0, SLOW_SPIN_SPEED);
       } else {
-        updateCurrentThrottle(0, DECEL_STEP);
+        updateCurrentThrottle(0);
         sendDrive(currentThrottle, 0);
       }
 
       // ショベル。使わない日も多いので、toioとつないだときと左下をタッチしたときに数回だけ探す
       // 接続は数秒止まることがあるので、toioが止まっているときだけ
-      // wasPressed() は M5.update() ごとに消え、50msごとの制御周期では見逃すので、押しているかの変化で見る
+      // wasPressed() は M5.update() ごとに消え、CONTROL_INTERVAL_MS ごとの制御周期では見逃すので、押しているかの変化で見る
       auto touch = M5.Touch.getDetail();
       dashboard.setTouch(touch.isPressed(), touch.x, touch.y); // 触れているボタンを押し込んだ見た目にする
       bool shovelAreaTouched = touch.isPressed() && dashboard.isShovelHit(touch.x, touch.y);
@@ -605,7 +669,7 @@ void loop(void)
       }
       shovelWasConnected = shovelConnected;
       if (shovelConnected) {
-        armPosition += stickY / 100.0f * ARM_STICK_SPEED * ARM_STICK_DIRECTION;
+        armPosition += stickY / 100.0f * ARM_SPEED_PER_SEC * CONTROL_INTERVAL_MS / 1000.0f * ARM_STICK_DIRECTION;
         armPosition = constrain(armPosition, 0.0f, 100.0f);
         shovel.setArm(static_cast<uint8_t>(armPosition + 0.5f));
       }
@@ -684,7 +748,5 @@ void loop(void)
       break;
     }
   }
-  if (state != AppState::SLEEP) {
-    dashboard.draw();
-  }
+  // 画面の描き直しは Dashboard の描き直し用のタスクが行う
 }
