@@ -9,14 +9,24 @@
 Dashboard dashboard(M5.Display);
 ShovelLink shovel;
 
-constexpr uint8_t BUTTON_BLUE_PIN = 8; // Port B
-constexpr uint8_t BUTTON_RED_PIN = 9;  // Port B
+// Dual Button を Port B につなぐ。機種は platformio.ini の env の define で選ぶ
+#if defined(COCKPIT_CORE2)
+// M5GO Bottom2 の Port B。G36 は入力専用で中の引き上げ抵抗を使えない
+// CoreS3 では INPUT のまま読めていたので、引き上げ抵抗は Dual Button 側にあると考えている
+constexpr uint8_t BUTTON_BLUE_PIN = 36; // Port B の白
+constexpr uint8_t BUTTON_RED_PIN = 26;  // Port B の黄
+#elif defined(COCKPIT_CORES3)
+constexpr uint8_t BUTTON_BLUE_PIN = 8; // Port B の白
+constexpr uint8_t BUTTON_RED_PIN = 9;  // Port B の黄
+#else
+#error "cockpit の機種が決まっていない。platformio.ini の env で COCKPIT_CORE2 か COCKPIT_CORES3 を define する"
+#endif
 
 GpioButton buttonBlue(BUTTON_BLUE_PIN);
 GpioButton buttonRed(BUTTON_RED_PIN);
 Joystick joystick;
 bool joystickAvailable = false; // JoyStickが応答したか。見つからなければ見つかるまで探し続ける
-// 電源を入れた直後は JoyStick のマイコンが CoreS3 より遅れて起きるので、起動時はこの時間まで探し直す
+// 電源を入れた直後は JoyStick のマイコンが本体より遅れて起きるので、起動時はこの時間まで探し直す
 // （書き込み直後は JoyStick に電気が通ったままなのですぐ見つかるが、電源を入れ直したときは1回目では見つからないことがある）
 constexpr uint32_t JOYSTICK_BOOT_WAIT_MS = 3000;
 constexpr uint32_t JOYSTICK_RETRY_MS = 100;      // 起動時に探し直す間隔
@@ -37,7 +47,7 @@ enum class AppState {
 AppState state = AppState::SCANNING;
 
 constexpr uint32_t CONTROL_INTERVAL_MS = 50;  // 入力読み取りとモーター制御の周期
-constexpr uint32_t CORE_BATTERY_INTERVAL_MS = 2000; // CoreS3の電池残量を読む周期
+constexpr uint32_t CORE_BATTERY_INTERVAL_MS = 2000; // 本体の電池残量を読む周期
 constexpr uint32_t RETRY_INTERVAL_MS = 5000;  // ERRORから自動で再試行するまでの時間
 constexpr uint32_t DIM_AFTER_MS = 90 * 1000;     // 触らないまま、この時間たったら画面を暗くする
 constexpr uint32_t SLEEP_AFTER_MS = 3 * 60 * 1000; // 触らないまま、この時間たったらtoioとの接続を切って画面を消す

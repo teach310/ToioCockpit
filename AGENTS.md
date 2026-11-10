@@ -1,6 +1,6 @@
 # ToioCockpit
 
-M5Stack CoreS3 を運転席（cockpit）にして toio を操作するプロジェクト。
+M5Stack Core2 か CoreS3 を運転席（cockpit）にして toio を操作するプロジェクト。
 コントローラーがメインで、ショベルやアクセルは後から付け足すアタッチメントという位置づけ。
 
 ## 構成
@@ -9,7 +9,7 @@ M5Stack CoreS3 を運転席（cockpit）にして toio を操作するプロジ�
 
 | env | フォルダ | 機種 | 役割 |
 |---|---|---|---|
-| `cockpit` | `src/cockpit/` | CoreS3 | 運転席。toio の操作とメーターパネル表示（メイン） |
+| `cockpit-core2` / `cockpit-cores3` | `src/cockpit/` | Core2（M5GO Bottom2 付き）/ CoreS3 | 運転席。toio の操作とメーターパネル表示（メイン） |
 | `shovel` | `src/shovel/` | AtomS3 | toio に載せるショベル。Servo Kit 180° でアームを動かす (#13) |
 | `pedal` | `src/pedal/` | ATOM Lite | 圧力センサーのアクセル (#12)。今はセンサーの値を Serial と本体の LED に出すテストだけ |
 
@@ -23,8 +23,8 @@ M5Stack CoreS3 を運転席（cockpit）にして toio を操作するプロジ�
 ## ビルドと書き込み
 
 ```sh
-pio run -e cockpit                # ビルド
-pio run -e cockpit -t upload      # 書き込み
+pio run -e cockpit-core2            # ビルド（CoreS3 なら cockpit-cores3）
+pio run -e cockpit-core2 -t upload  # 書き込み
 pio run -e shovel -t upload       # shovel に書き込み
 pio run -e pedal -t upload        # pedal に書き込み
 pio device monitor -e pedal       # pedal の Serial を見る
@@ -33,11 +33,15 @@ pio device monitor -e pedal       # pedal の Serial を見る
 - 書き込みはユーザーの指示があってから行う。機体を USB から外していることがある
 - 機体を複数つなぐようになったら、env ごとに `upload_port` を書いて書き込み先を取り違えないようにする
 
-## cockpit（CoreS3）の入出力
+## cockpit（Core2 / CoreS3）の入出力
+
+後ろの LEGO ピンの都合で、今は M5GO Bottom2 を付けた Core2 を使っている。CoreS3 に戻すこともあるので、両方でビルドできるようにしている。
+- env は共通の設定 `[cockpit]` を `extends` し、`build_flags` で `COCKPIT_CORE2` か `COCKPIT_CORES3` を define する。機種で違うところはコードで `#if defined(...)` で分ける
+- Port A のピンは `M5.getPin()` で機種ごとに取れるので分けていない
 
 - Port A (I2C): M5Unit-Joystick2。押し込みでその場回転（速い）、押し込み中はライトが付く。ショベルにつながっている間は押し込みでは回らない。左右に倒すとその場でゆっくり回る。上下に倒すとショベルのアームが動く（離すとその位置で止まる）。斜めのときは大きく倒した方の軸だけ使う
 - shovel とは `ShovelLink` で BLE 接続する。shovel は使わない日も多いので探し続けない。toio とつないだとき、メーター左下の SHOVEL 表示をタッチしたとき、途中で切れたときに3回だけ探す。接続は toio が止まっているときだけ行う（接続中は最大数秒止まるため）
-- Port B: GPIO 8 = 青ボタン（前進）、GPIO 9 = 赤ボタン（後退）
+- Port B: 青ボタン（前進）は白、赤ボタン（後退）は黄の線。Core2（M5GO Bottom2）は G36・G26、CoreS3 は G8・G9。G36 は入力専用で中の引き上げ抵抗を使えない。CoreS3 では INPUT のまま読めていたので、引き上げ抵抗は Dual Button 側にあると考えている
 - 速さのギア: SLOW（前進40・後退30）、LOW（前進70・後退50）、HIGH（前進100・後退70）の3段。メーター左上のボタンをタッチして SLOW → LOW → HIGH → SLOW の順に切り替え、Preferences に保存する
 - タッチで操作できるところ（速さのギア・HORN・SHOVEL・STEER）はボタンの見た目にする（影で浮かせ、押している間は沈める）。押せない表示（P R N D S など）はボタンにしない
 - ハンドル: 本体の傾き（IMU の accel.x、TILT）か JoyStick の左右（STICK）。メーター右下の STEER 表示をタッチして切り替え、Preferences に保存する
