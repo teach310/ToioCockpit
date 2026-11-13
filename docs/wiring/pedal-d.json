@@ -1,0 +1,23 @@
+{
+  "title": "ペダル圧力センサー 配線D（CoreS3 の Port B。センサーはコネクタから線でのばす）",
+  "board": { "type": "cores3-portb" },
+  "breadboard": { "columns": 20 },
+  "parts": [
+    {
+      "type": "sensor-2pin", "pins": ["a8", "a9"], "label": "感圧センサ", "note": "MF02A（実物は約4cm角）",
+      "extend": {
+        "colors": ["blue", "green"],
+        "connector": "FFC用コネクタ（ピンヘッダ2本）",
+        "label": "ジャンパワイヤ（オス‐メス）2本でのばす",
+        "label_at": [496, 190]
+      }
+    },
+    { "type": "resistor", "value": "10k", "from": "b9", "to": "b15" }
+  ],
+  "wires": [
+    { "from": "grove.G9", "to": "d8" },
+    { "from": "grove.G8", "to": "d9" },
+    { "from": "grove.GND", "to": "d15" },
+    { "from": "grove.5V", "label": "5V（赤）: 使わない。先をテープで絶縁" }
+  ]
+}

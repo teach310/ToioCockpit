@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-/* Layout: 回路図カード2枚（A/B）を並べ、下に注意と部品表。狭い画面では縦に積む */
+/* Layout: 今の配線（CoreS3 の Port B）を上に、ATOM Lite で試した配線は下の折りたたみに入れる。狭い画面では縦に積む */
 :root {
   --bg: #f3f5f1;
   --panel: #ffffff;
@@ -197,30 +197,311 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
 .bbd .batt-box { fill:var(--header); } .bbd .batt-cell { fill:var(--film); stroke:var(--outline); stroke-width:1; }
 .bbd .halo { paint-order:stroke; stroke:var(--bb); stroke-width:4px; stroke-linejoin:round; }
 
+details.old { border: 1px dashed var(--line); border-radius: 10px; padding: 12px 16px; }
+details.old > summary { cursor: pointer; font-weight: 600; }
+details.old[open] > summary { margin-bottom: 16px; }
+details.old > .stack { display: grid; gap: 20px; }
 </style>
 
 <div class="wrap">
   <header>
     <h1>ペダル圧力センサーの配線</h1>
-    <p>ATOM Lite の G32 で感圧抵抗（FSR）の電圧を読むための配線です。本番は C（単四電池3本で動かし、センサーの電源を G26 からとる）でつなぎます。A と B は最初のテストで使った配線です。線の色は Grove ケーブルの色に合わせていますが、デュポン変換ケーブルによって色が違うことがあるので、ATOM Lite 側の刻印で確かめてください。</p>
+    <p>CoreS3 の Port B（黒い Grove 端子）で感圧センサの電圧を読むための配線です。センサーの端子には FFC用コネクタを付けてピンヘッダ2本にしてあり、ジャンパワイヤでブレッドボードまでのばします。線の色は Grove ケーブルの色に合わせていますが、デュポン変換ケーブルによって色が違うことがあるので、端子の並びで確かめてください。</p>
   </header>
 
   <div class="warn">
-    <strong>G32 に入れていいのは 3V 前後まで。</strong>
-    Grove の赤い線（5V）に感圧抵抗をじかにつなぐと、強く踏んだときに 5V 近くが G32 に入り、ATOM Lite を傷めるおそれがあります。
+    <strong>G8 に入れていいのは 3V 前後まで。</strong>
+    Port B の赤い線（5V）は使いません。感圧センサにじかにつなぐと、強く踏んだときに 5V 近くが G8 に入り、CoreS3 を傷めるおそれがあります。先をテープで絶縁しておきます。
   </div>
+
+  <section class="card">
+    <h2>ブレッドボードでの配線図 <span class="tag ok">今の配線</span></h2>
+    <p>実物の並びで描いた図です。ブレッドボードは、同じ番号の列の a〜e（と f〜j）が縦につながっています。色を付けた列がつながっているところです。</p>
+    <div class="diagram"><svg class="bbd" viewBox="0 0 722 545" role="img" aria-label="ペダル圧力センサー 配線D（CoreS3 の Port B。センサーはコネクタから線でのばす）">
+<rect class="bb" x="300" y="200" width="402" height="258" rx="8"/>
+<rect class="bb-gap" x="308" y="313" width="386" height="14" rx="3"/>
+<rect class="net net-yellow" x="449" y="223" width="14" height="86" rx="4"/>
+<rect class="net net-white" x="467" y="223" width="14" height="86" rx="4"/>
+<rect class="net net-black" x="575" y="223" width="14" height="86" rx="4"/>
+<text class="bb-label" x="314" y="234" text-anchor="middle">a</text>
+<rect class="bb-hole" x="326.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="226.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="226.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="252" text-anchor="middle">b</text>
+<rect class="bb-hole" x="326.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="244.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="244.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="270" text-anchor="middle">c</text>
+<rect class="bb-hole" x="326.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="262.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="262.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="288" text-anchor="middle">d</text>
+<rect class="bb-hole" x="326.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="280.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="280.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="306" text-anchor="middle">e</text>
+<rect class="bb-hole" x="326.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="298.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="298.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="360" text-anchor="middle">f</text>
+<rect class="bb-hole" x="326.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="352.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="352.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="378" text-anchor="middle">g</text>
+<rect class="bb-hole" x="326.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="370.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="370.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="396" text-anchor="middle">h</text>
+<rect class="bb-hole" x="326.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="388.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="388.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="414" text-anchor="middle">i</text>
+<rect class="bb-hole" x="326.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="406.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="406.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="314" y="432" text-anchor="middle">j</text>
+<rect class="bb-hole" x="326.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="344.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="362.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="380.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="398.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="416.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="434.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="452.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="470.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="488.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="506.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="524.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="542.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="560.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="578.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="596.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="614.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="632.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="650.5" y="424.5" width="7" height="7" rx="1"/>
+<rect class="bb-hole" x="668.5" y="424.5" width="7" height="7" rx="1"/>
+<text class="bb-label" x="330" y="217" text-anchor="middle">1</text>
+<text class="bb-label" x="402" y="217" text-anchor="middle">5</text>
+<text class="bb-label" x="492" y="217" text-anchor="middle">10</text>
+<text class="bb-label" x="582" y="217" text-anchor="middle">15</text>
+<text class="bb-label" x="672" y="217" text-anchor="middle">20</text>
+<rect class="board" x="40" y="250" width="150" height="150" rx="18"/>
+<text class="svg-text" x="115" y="315" text-anchor="middle" font-weight="700">CoreS3</text>
+<text class="svg-muted" x="115" y="333" text-anchor="middle">Port B（黒い端子）</text>
+<rect class="grove" x="82" y="392" width="66" height="20" rx="3"/>
+<circle cx="95" cy="402" r="4" class="dot-black"/>
+<circle cx="108" cy="402" r="4" class="dot-red"/>
+<circle cx="121" cy="402" r="4" class="dot-yellow"/>
+<circle cx="134" cy="402" r="4" class="dot-white"/>
+<text class="svg-muted" x="76" y="406" text-anchor="end">Port B</text>
+<rect class="film" x="376.0" y="126" width="34" height="24" rx="2"/>
+<line class="trace" x1="384.0" y1="126" x2="384.0" y2="148"/>
+<line class="trace" x1="402.0" y1="126" x2="402.0" y2="148"/>
+<rect class="film" x="331.0" y="4" width="124" height="124" rx="6"/>
+<rect class="sensor-area" x="339.0" y="12" width="108" height="108" rx="3"/>
+<rect class="header" x="373.0" y="144" width="40" height="18" rx="2"/>
+<line class="lead" x1="384.0" y1="162" x2="384.0" y2="172"/>
+<line class="lead" x1="402.0" y1="162" x2="402.0" y2="172"/>
+<text class="svg-text" x="465.0" y="46" font-weight="600">感圧センサ</text>
+<text class="svg-muted" x="465.0" y="64">MF02A（実物は約4cm角）</text>
+<text class="svg-muted" x="421.0" y="157">FFC用コネクタ（ピンヘッダ2本）</text>
+<path class="outline" d="M384.0 170 C 384.0 205, 456 185, 456 230"/><path class="w w-blue" d="M384.0 170 C 384.0 205, 456 185, 456 230"/>
+<rect class="pin-end" x="452" y="226" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M402.0 170 C 402.0 205, 474 185, 474 230"/><path class="w w-green" d="M402.0 170 C 402.0 205, 474 185, 474 230"/>
+<rect class="pin-end" x="470" y="226" width="8" height="8" rx="1.5"/>
+<text class="svg-muted" x="496" y="190">ジャンパワイヤ（オス‐メス）2本でのばす</text>
+<line class="lead" x1="474" y1="248" x2="582" y2="248"/>
+<rect class="res" x="500.0" y="241" width="56" height="14" rx="6"/>
+<rect x="507.0" y="241" width="4" height="14" fill="#7a4a24"/>
+<rect x="519.6666666666666" y="241" width="4" height="14" fill="#1b1b1b"/>
+<rect x="532.3333333333334" y="241" width="4" height="14" fill="#e8761c"/>
+<rect x="547.0" y="241" width="4" height="14" fill="#c9a227"/>
+<text class="svg-text halo" x="528.0" y="237" text-anchor="middle" font-weight="600">10kΩ</text>
+<path class="outline" d="M121 412 C 121 458, 456 458, 456 284"/><path class="w w-yellow" d="M121 412 C 121 458, 456 458, 456 284"/>
+<rect class="pin-end" x="452" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M134 412 C 134 464, 474 464, 474 284"/><path class="w w-white" d="M134 412 C 134 464, 474 464, 474 284"/>
+<rect class="pin-end" x="470" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M95 412 C 95 470, 582 470, 582 284"/><path class="w w-black" d="M95 412 C 95 470, 582 470, 582 284"/>
+<rect class="pin-end" x="578" y="280" width="8" height="8" rx="1.5"/>
+<path class="outline" d="M108 412 C 108 500, 148 500, 200 500"/><path class="w w-red" d="M108 412 C 108 500, 148 500, 200 500"/>
+<rect class="cap" x="198" y="495" width="14" height="10" rx="3"/>
+<text class="svg-muted" x="218" y="504">5V（赤）: 使わない。先をテープで絶縁</text>
+</svg></div>
+    <ol class="steps">
+      <li>感圧センサのコネクタ（ピンヘッダ2本）に、ジャンパワイヤ（オス‐メス）のメス側を1本ずつ挿す</li>
+      <li>ジャンパワイヤのオス側を <span class="mono">a8</span> と <span class="mono">a9</span> に挿す</li>
+      <li>10kΩ を <span class="mono">b9</span> と <span class="mono">b15</span> に挿す</li>
+      <li>Port B の黄（G9）を <span class="mono">d8</span>、白（G8）を <span class="mono">d9</span>、黒（GND）を <span class="mono">d15</span> へ</li>
+      <li>Port B の赤（5V）は使わない。先をテープで絶縁する</li>
+    </ol>
+    <p>ブレッドボードの上の並びは、センサーをじかに挿していたときと同じです。センサーのピンが挿さっていた <span class="mono">a8</span>・<span class="mono">a9</span> に、ジャンパワイヤの先が来るだけです。センサーと抵抗には向きがないので、2本のジャンパワイヤはどちらがどちらの穴でもかまいません（図の青と緑は見分けるための色です）。抵抗の色は 10kΩ が 茶・黒・橙・金 です。</p>
+    <p>G9 はファームで HIGH にして約3.3Vを出します。センサーに流れるのは 0.3mA 以下なので GPIO で足ります。</p>
+  </section>
 
   <div class="grid2">
     <section class="card">
-      <h3>使うセンサー</h3>
-      <p>感圧センサ（四角形）<span class="mono">MF02A-N-221-A01</span>（Taiwan Alpha）。押すと抵抗が下がるシートで、ただの抵抗なので 3.3V でも 5V でも使えます。端子は 2.54mm 間隔のオスピン2本で、ブレッドボードにそのまま挿せます。</p>
+      <h3>使うセンサーとコネクタ</h3>
+      <p>感圧センサ（四角形）<span class="mono">MF02A-N-221-A01</span>（Taiwan Alpha）。押すと抵抗が下がるシートです。端子に 2.54mmピッチFFC用コネクタ（2線用・ピンヘッダ変換）をかしめて、2.54mm 間隔のピンヘッダ2本にしてあります。ここにメスのジャンパワイヤを挿せば、センサーをブレッドボードから離して置けます。</p>
       <table>
-        <thead><tr><th>押す重さ</th><th>センサーの抵抗</th><th>A・C の G32</th><th>B の G32</th></tr></thead>
+        <thead><tr><th>押す重さ</th><th>センサーの抵抗</th><th>G8 の電圧</th></tr></thead>
         <tbody>
-          <tr><td>押していない</td><td class="mono">20MΩ 以上</td><td class="mono">≒ 0V</td><td class="mono">≒ 0V</td></tr>
-          <tr><td>30g</td><td class="mono">約 60kΩ</td><td class="mono">約 0.5V</td><td class="mono">約 0.7V</td></tr>
-          <tr><td>100g</td><td class="mono">約 7.5kΩ</td><td class="mono">約 1.9V</td><td class="mono">約 2.1V</td></tr>
-          <tr><td>1kg</td><td class="mono">約 1kΩ</td><td class="mono">約 3.0V</td><td class="mono">約 2.8V</td></tr>
+          <tr><td>押していない</td><td class="mono">20MΩ 以上</td><td class="mono">≒ 0V</td></tr>
+          <tr><td>30g</td><td class="mono">約 60kΩ</td><td class="mono">約 0.5V</td></tr>
+          <tr><td>100g</td><td class="mono">約 7.5kΩ</td><td class="mono">約 1.9V</td></tr>
+          <tr><td>1kg</td><td class="mono">約 1kΩ</td><td class="mono">約 3.0V</td></tr>
         </tbody>
       </table>
       <p>抵抗は仕様書のグラフ（直径10mmのゴムで押したとき）から読んだ目安です。</p>
@@ -231,15 +512,13 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
         <thead><tr><th>部品</th><th>数</th><th>メモ</th></tr></thead>
         <tbody>
           <tr><td>感圧センサ（四角形）MF02A-N-221-A01</td><td>1</td><td>スイッチサイエンス 9697</td></tr>
-          <tr><td>ATOM Lite</td><td>1</td><td>手持ち</td></tr>
-          <tr><td>Grove → デュポン変換ケーブル（オス）</td><td>1</td><td>ブレッドボードに挿すのでオスピンのもの</td></tr>
-          <tr><td>抵抗 10kΩ（1/4W）</td><td>1</td><td>A・B・C 共通</td></tr>
-          <tr><td>抵抗 6.8kΩ（1/4W）</td><td>1</td><td>B のときだけ</td></tr>
-          <tr><td>ブレッドボード（小さいもの）</td><td>1</td><td>センサー・抵抗・ケーブルをつなぐ</td></tr>
-          <tr><td>ジャンパワイヤ（オス‐オス）</td><td>2〜3</td><td>A では ATOM Lite のピン列（メス）の 3V3 からブレッドボードへ</td></tr>
-          <tr><td>単四電池ボックス 3本用</td><td>1</td><td>C のとき。スイッチはなくてよい（線の抜き差しで切る）。ATOM Lite の右のピン列の 5V と GND へ。ピン列はメスなので、リード線の先にオスピンを付ける</td></tr>
-          <tr><td>単四アルカリ電池</td><td>3</td><td>C のとき。新品で約4.8V</td></tr>
-          <tr><td>USB-C ケーブル</td><td>1</td><td>書き込みと Serial 用。つなぐ前に電池の赤い線を 5V ピンから抜く</td></tr>
+          <tr><td>2.54mmピッチFFC用コネクタ（2線用・ピンヘッダ変換）</td><td>1</td><td>スイッチサイエンス 3327。センサーの端子にかしめてある</td></tr>
+          <tr><td>ジャンパワイヤ（オス‐メス）</td><td>2</td><td>メス側をコネクタへ、オス側をブレッドボードへ。長さでセンサーを置ける場所が決まる</td></tr>
+          <tr><td>CoreS3</td><td>1</td><td>内蔵の電池で動かす</td></tr>
+          <tr><td>Grove → デュポン変換ケーブル（オス）</td><td>1</td><td>Port B からブレッドボードへ</td></tr>
+          <tr><td>抵抗 10kΩ（1/4W）</td><td>1</td><td></td></tr>
+          <tr><td>ブレッドボード（小さいもの）</td><td>1</td><td>抵抗・ジャンパワイヤ・ケーブルをつなぐ</td></tr>
+          <tr><td>USB-C ケーブル</td><td>1</td><td>書き込みと Serial 用</td></tr>
         </tbody>
       </table>
     </section>
@@ -247,9 +526,83 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
 
   <div class="warn">
     <strong>このセンサーが測れるのは 1kg まで。</strong>
-    足で踏むと数 kg かかるので、すぐに値が頭打ちになり、センサーにも負担がかかります（寿命は 1kg で 1000 万回の試験値）。ペダルにするときは、スポンジやゴムを挟んで力を逃がします。シートの付け根から 5mm 以内は曲げず、配線部分も 90° 以上折らないでください。
+    足で踏むと数 kg かかるので、すぐに値が頭打ちになり、センサーにも負担がかかります（寿命は 1kg で 1000 万回の試験値）。ペダルにするときは、スポンジやゴムを挟んで力を逃がします。シートの付け根から 5mm 以内は曲げず、配線部分も 90° 以上折らないでください。線をのばしたぶん、踏んだときにコネクタやジャンパワイヤが引っぱられないよう、線をテープなどで止めておきます。
   </div>
 
+  <div class="cards">
+    <section class="card">
+      <h2>回路</h2>
+      <div class="diagram">
+        <svg viewBox="0 0 640 300" role="img" aria-label="回路: Port B の G9 から感圧センサ、G8、10kΩを経てGNDへ">
+          <rect class="board" x="20" y="24" width="180" height="262" rx="14"/>
+          <text class="svg-text" x="40" y="54" font-weight="700">CoreS3</text>
+          <rect class="grove" x="120" y="108" width="80" height="168" rx="6"/>
+          <text class="svg-muted" x="40" y="128">Port B</text>
+          <text class="svg-mono unused" x="190" y="134" text-anchor="end">5V</text>
+          <text class="svg-mono" x="190" y="174" text-anchor="end">G9</text>
+          <text class="svg-mono" x="190" y="214" text-anchor="end">G8</text>
+          <text class="svg-mono" x="190" y="264" text-anchor="end">GND</text>
+          <line class="w w-red unused" x1="200" y1="130" x2="226" y2="130"/>
+
+          <path class="outline" d="M200 170 H260 V60 H440 V84"/>
+          <path class="w w-yellow" d="M200 170 H260 V60 H440 V84"/>
+          <path class="outline" d="M440 140 V210"/>
+          <path class="w w-yellow" d="M440 140 V210"/>
+          <path class="outline" d="M440 210 H200"/>
+          <path class="w w-white" d="M440 210 H200"/>
+          <path class="outline" d="M440 210 V222"/>
+          <path class="w w-black" d="M440 210 V222"/>
+          <path class="outline" d="M440 254 V260 H200"/>
+          <path class="w w-black" d="M440 254 V260 H200"/>
+
+          <rect class="part" x="426" y="84" width="28" height="56" rx="3"/>
+          <path class="arrow" d="M410 132 L470 92"/>
+          <path class="arrowhead" d="M470 92 l-10 1 l5 7 z"/>
+          <text class="svg-text" x="482" y="108" font-weight="600">感圧センサ</text>
+          <text class="svg-muted" x="482" y="125">踏むと抵抗が下がる</text>
+          <text class="svg-muted" x="482" y="141">両端をジャンパワイヤでのばす</text>
+
+          <rect class="part" x="428" y="222" width="24" height="32" rx="3"/>
+          <text class="svg-text" x="466" y="243" font-weight="600">10kΩ</text>
+
+          <circle class="node" cx="440" cy="210" r="5"/>
+          <text class="svg-muted" x="300" y="200">ここの電圧を読む</text>
+        </svg>
+      </div>
+      <p>G9 から出した約3.3Vを、感圧センサと 10kΩ で分けて G8 で読みます。出力は 0〜3.3V に収まります。10kΩ は、このセンサーの 30g〜1kg の範囲を 0.5〜3V に広げられる値です。</p>
+      <div class="formula">G8 = 3.3V × 10k ÷ (10k + R<sub>センサ</sub>)</div>
+    </section>
+    <div class="grid2" style="align-content:start">
+      <section class="card">
+        <h3>CoreS3 の Port B</h3>
+        <table>
+          <thead><tr><th>線の色</th><th>ピン</th><th>この配線での役割</th></tr></thead>
+          <tbody>
+            <tr><td><span class="swatch" style="background:var(--wire-black)"></span>黒</td><td class="mono">GND</td><td>10kΩ のもう一方</td></tr>
+            <tr><td><span class="swatch" style="background:var(--wire-red)"></span>赤</td><td class="mono">5V</td><td>使わない。先を絶縁する</td></tr>
+            <tr><td><span class="swatch" style="background:var(--wire-yellow)"></span>黄</td><td class="mono">G9</td><td>センサーの電源（出力 HIGH）</td></tr>
+            <tr><td><span class="swatch" style="background:var(--wire-white)"></span>白</td><td class="mono">G8</td><td>センサーの電圧を読む</td></tr>
+          </tbody>
+        </table>
+        <p>Port A（赤い端子）は I2C 用で、基板の中で 3.3V に引き上げられているので、センサーには使いません。</p>
+      </section>
+      <section class="card">
+        <h3>つないだら</h3>
+        <ol>
+          <li>CoreS3 を USB でつなぐ</li>
+          <li><span class="mono">pio run -e pedal -t upload</span> で書き込む</li>
+          <li>画面の % とバー、電圧を見る（<span class="mono">pio device monitor -e pedal</span> でも見られる）</li>
+          <li>踏んでいないときに 0% になり、踏むと上がるかを確かめる。最大が 3000mV を大きく超えていないかも見る</li>
+          <li>線をゆらして値が飛ばないかを見る。飛ぶときはコネクタのかしめとジャンパワイヤの挿さり具合を確かめる</li>
+        </ol>
+      </section>
+    </div>
+  </div>
+
+  <details class="old">
+    <summary>前に試した配線（ATOM Lite）</summary>
+    <div class="stack">
+    <p>ATOM Lite の G32 で読んでいたときの配線です。A と B は最初のテスト、C は単四電池3本で動かしたときのものです。センサーはコネクタを付ける前で、ブレッドボードにじかに挿していました。</p>
   <section class="card">
     <h2>ATOM Lite のどこに挿すか</h2>
     <div class="diagram">
@@ -320,9 +673,9 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
 
 
   <section class="card">
-    <h2>ブレッドボードでの配線図</h2>
+    <h2>ATOM Lite でのブレッドボードの配線図</h2>
     <p>実物の並びで描いた図です。ブレッドボードは、同じ番号の列の a〜e（と f〜j）が縦につながっています。色を付けた列がつながっているところです。</p>
-    <h3>C. 単四電池3本で動かし、G26 からセンサーに給電する（本番）</h3>
+    <h3>C. 単四電池3本で動かし、G26 からセンサーに給電する</h3>
     <div class="diagram"><svg class="bbd" viewBox="0 0 722 545" role="img" aria-label="ペダル圧力センサー 配線C（単四電池3本で動かし、G26からセンサーに給電）">
 <rect class="bb" x="300" y="200" width="402" height="258" rx="8"/>
 <rect class="bb-gap" x="308" y="313" width="386" height="14" rx="3"/>
@@ -1331,7 +1684,6 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
     </section>
   </div>
 
-  <div class="grid2">
     <section class="card">
       <h3>ATOM Lite の Grove 端子</h3>
       <table>
@@ -1344,16 +1696,6 @@ h3 { margin: 0 0 8px; font-size: 1rem; }
         </tbody>
       </table>
     </section>
-    <section class="card">
-      <h3>つないだら</h3>
-      <ol>
-        <li>電池の赤い線を 5V ピンから抜いてから、ATOM Lite を USB でつなぐ</li>
-        <li><span class="mono">pio run -e pedal -t upload</span> で書き込む</li>
-        <li><span class="mono">pio device monitor -e pedal</span> で値を見る</li>
-        <li>踏んでいない・軽く踏む・強く踏むで mV を比べる。最大が 3000mV を超えていないか確かめる</li>
-        <li>電池で動かしたときは本体の LED で確かめる。押していないと暗い青、押すほど緑 → 黄 → 赤に変わる</li>
-      </ol>
-      <p>10kΩ は、このセンサーの 30g〜1kg の範囲を 0.5〜3V に広げられる値です。</p>
-    </section>
-  </div>
+    </div>
+  </details>
 </div>
