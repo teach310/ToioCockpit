@@ -16,8 +16,9 @@ M5Stack CoreS3 を運転席（cockpit）にして toio を操作するプロジ�
 - 各 env は `build_src_filter = +<役割/>` で自分のフォルダだけをビルドする。`setup()` / `loop()` を持つファイルが入口
 - 複数の env で使うコード（BLE の UUID やデータの形など）は `lib/` に置く。通信の決まりごとを変えるときは、送る側と受ける側を同じ PR で直す
   - `lib/ShovelProtocol/`: cockpit と shovel の BLE の決まりごと
-- pedal（CoreS3）は内蔵の電池で動かす。感圧センサーと 10kΩ を Port B につなぎ、黄（G9）を HIGH にしてセンサーの電源を出し、白（G8）で読む。ブレッドボードの並びは配線C（`docs/wiring/pedal-c.json`）の電池ボックスを除いた部分と同じで、Grove ケーブルを ATOM Lite の代わりに CoreS3 の Port B に挿す。Port B の赤（5V）は使わず絶縁する
-  - 配線図とまとめページ（`pedal-a/b/c`、`pedal-wiring.html`）は ATOM Lite で試したときのもの
+- pedal（CoreS3）は内蔵の電池で動かす。感圧センサーと 10kΩ を Port B につなぎ、黄（G9）を HIGH にしてセンサーの電源を出し、白（G8）で読む。今の配線は配線D（`docs/wiring/pedal-d.json`）。Port B の赤（5V）は使わず絶縁する
+  - 感圧センサーの端子には FFC用コネクタ（スイッチサイエンス 3327）を付けてピンヘッダ2本にしてあり、ジャンパワイヤ（オス‐メス）でブレッドボードまでのばす
+  - `pedal-a/b/c` は ATOM Lite で試したときの配線。`pedal-wiring.html` では下の折りたたみに入れている
   - Port A は I2C 用で、基板の中で 3.3V に引っぱられている（Core2 では 2.2kΩ。10kΩ でつなぐと押していなくても約2.7Vになった）。アナログのセンサーは Port B につなぐ
   - cockpit を Core2 に替えて空いた CoreS3 を使う（cockpit の置き換えは別の PR）。電源の問題が片付けば ATOM のほうが pedal に向いている
 - 配線図は `docs/wiring/` に置く。ブレッドボードの配線図は、ユーザー全体の skill `breadboard-diagram` で配置の JSON（`pedal-a.json` など）から SVG を作る。配線を変えたら JSON を直して作り直す。`pedal-wiring.html` はペダルの配線をまとめたページ
