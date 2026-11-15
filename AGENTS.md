@@ -11,11 +11,12 @@ M5Stack Core2 か CoreS3 を運転席（cockpit）にして toio を操作する
 |---|---|---|---|
 | `cockpit-core2` / `cockpit-cores3` | `src/cockpit/` | Core2（M5GO Bottom2 付き）/ CoreS3 | 運転席。toio の操作とメーターパネル表示（メイン） |
 | `shovel` | `src/shovel/` | AtomS3 | toio に載せるショベル。Servo Kit 180° でアームを動かす (#13) |
-| `pedal` | `src/pedal/` | CoreS3 | 圧力センサーのアクセル (#12)。今はセンサーの値を Serial と画面に出すテストだけ |
+| `pedal` | `src/pedal/` | CoreS3 | 圧力センサーのアクセル (#12)。踏んだ強さ（0〜100）を BLE で cockpit に送る |
 
 - 各 env は `build_src_filter = +<役割/>` で自分のフォルダだけをビルドする。`setup()` / `loop()` を持つファイルが入口
 - 複数の env で使うコード（BLE の UUID やデータの形など）は `lib/` に置く。通信の決まりごとを変えるときは、送る側と受ける側を同じ PR で直す
   - `lib/ShovelProtocol/`: cockpit と shovel の BLE の決まりごと
+  - `lib/PedalProtocol/`: cockpit と pedal の BLE の決まりごと
 - pedal（CoreS3）は内蔵の電池で動かす。感圧センサーと 10kΩ を Port B につなぎ、黄（G9）を HIGH にしてセンサーの電源を出し、白（G8）で読む。今の配線は配線D（`docs/wiring/pedal-d.json`）。Port B の赤（5V）は使わず絶縁する
   - 感圧センサーの端子には FFC用コネクタ（スイッチサイエンス 3327）を付けてピンヘッダ2本にしてあり、ジャンパワイヤ（オス‐メス）でブレッドボードまでのばす
   - `pedal-a/b/c` は ATOM Lite で試したときの配線。`pedal-wiring.html` では下の折りたたみに入れている
@@ -45,6 +46,11 @@ pio device monitor -e pedal       # pedal の Serial を見る
 
 - Port A (I2C): M5Unit-Joystick2。押し込みでその場回転（速い）、押し込み中はライトが付く。ショベルにつながっている間は押し込みでは回らない。左右に倒すとその場でゆっくり回る。上下に倒すとショベルのアームが動く（離すとその位置で止まる）。斜めのときは大きく倒した方の軸だけ使う
 - shovel とは `ShovelLink` で BLE 接続する。shovel は使わない日も多いので探し続けない。toio とつないだとき、メーター左下の SHOVEL 表示をタッチしたとき、途中で切れたときに3回だけ探す。接続は toio が止まっているときだけ行う（接続中は最大数秒止まるため）
+- pedal とは `PedalLink` で BLE 接続し、踏んだ強さを通知で受け取る。探し方・つなぎ方は shovel と同じで、共通の部分は `AttachmentLink` にある（スキャンは同時に1つしか動かせないので、ほかが探している間は待つ）
+  - メーター右上の PEDAL ボタンをタッチして、ペダルで走るかどうかを切り替え、Preferences に保存する。走る設定にしたときと、走る設定で toio とつないだときに探す。見つからなければ NONE と出るので、2回タッチ（走らない → 走る）すると探し直す
+  - ペダルで走るときは、踏んだ強さに合わせて今の速さのギアの一番速い速さまで出す。青・赤ボタンは向きを選ぶボタンになる（青 = 前進、赤 = 後退）。走っている最中に反対向きを選ぶと、いったん 0 まで減速してから加速する。止まっていても選んでいる向きをギアの列（D / R）に出す
+  - ペダルで走る設定でも、ペダルにつながっていない間はボタンで走る
+  - 通知が `PedalProtocol::STALE_MS` 届かなければ踏んでいない扱いにする。pedal は値が変わらなくても `KEEPALIVE_MS` ごとに送る
 - Port B: 青ボタン（前進）は白、赤ボタン（後退）は黄の線。Core2（M5GO Bottom2）は G36・G26、CoreS3 は G8・G9。G36 は入力専用で中の引き上げ抵抗を使えない。CoreS3 では INPUT のまま読めていたので、引き上げ抵抗は Dual Button 側にあると考えている
 - 速さのギア: SLOW（前進40・後退30）、LOW（前進70・後退50）、HIGH（前進100・後退70）の3段。メーター左上のボタンをタッチして SLOW → LOW → HIGH → SLOW の順に切り替え、Preferences に保存する
 - 加速と減速: 目標の速さへ少しずつ近づける。1秒あたり加速 80・減速 140 で、前進と後退を切り替えるときはいったん 0 まで減速する（toio-cockpit-web と同じ）。前回からたった時間で計算するので、制御の周期が延びても速さは変わらない
@@ -69,7 +75,7 @@ pio device monitor -e pedal       # pedal の Serial を見る
 - `toio.loop()` は最初のスキャンで見つけたオブジェクトしか処理しない。再スキャン後も通知が届くよう `toiocore->_loop()` を直接呼んでいる
 - `toio.scan()` は見つけた toio のオブジェクトを毎回 `new` して解放しない
 - toio の MIDI 再生は新しい音の命令で一度止まってから鳴り直す。音をつなげて余韻を付けることはできない
-- NimBLE-Arduino の同時接続数の初期上限は 3（`CONFIG_BT_NIMBLE_MAX_CONNECTIONS`）
+- NimBLE-Arduino の同時接続数の初期上限は 3（`CONFIG_BT_NIMBLE_MAX_CONNECTIONS`）。toio・shovel・pedal でちょうど 3 なので、アタッチメントを増やすときは上限を上げる
 - モーターや音の命令は toio の返事を待つ書き方（`writeValue(..., true)`）で送るので、1回ごとに待ちが入る。毎回値が変わるモーターの命令は、cockpit でモーターの characteristic を見つけて返事を待たずに送っている
 - M5Unified の `serial_baudrate` の初期値は 0 で、Core2 では Serial が始まらない（CoreS3 は USB 直結なので出る）。cockpit では 115200 にしている
 
