@@ -36,8 +36,7 @@ public:
     void setHornPressed(bool pressed);
     /// @param arm アームの位置 (0～100)。CONNECTED 以外では使わない
     void setShovel(ShovelState state, int arm);
-    /// @param pressure 踏んだ強さ (0～100)。CONNECTED 以外では使わない
-    void setPedal(PedalState state, int pressure);
+    void setPedal(PedalState state);
     /// @param stick true なら JoyStick で曲がる (STICK)、false なら本体の傾きで曲がる (TILT)
     void setStickSteering(bool stick);
     void setSpeedGear(SpeedGear gear);
@@ -104,7 +103,6 @@ private:
     TouchedButton _touched = TouchedButton::NONE;
     int _shovelArm = -1;
     PedalState _pedalState = PedalState::OFF;
-    int _pedalPressure = 0;
 
     bool _dirty = true;
     uint32_t _lastDrawMs = 0;

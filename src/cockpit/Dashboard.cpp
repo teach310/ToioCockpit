@@ -223,16 +223,11 @@ void Dashboard::setShovel(ShovelState state, int arm)
     }
 }
 
-void Dashboard::setPedal(PedalState state, int pressure)
+void Dashboard::setPedal(PedalState state)
 {
-    if (state != PedalState::CONNECTED)
-    {
-        pressure = 0;
-    }
-    if (state != _pedalState || pressure != _pedalPressure)
+    if (state != _pedalState)
     {
         _pedalState = state;
-        _pedalPressure = pressure;
         _dirty = true;
     }
 }
@@ -514,7 +509,7 @@ void Dashboard::drawSpeedText()
     _canvas.drawString("km/h", GAUGE_X, 231);
 }
 
-// 右上のボタンに、ペダルで走るかどうかとつながりを出す。つながっていれば踏んだ強さを横長のバーで出す
+// 右上のボタンに、ペダルで走るかどうかとつながりを出す。踏んだ強さは真ん中の速さのメーターでわかるので出さない
 void Dashboard::drawPedal()
 {
     // ショベルと同じく、つながっているときだけ名前を明るくする
@@ -528,20 +523,14 @@ void Dashboard::drawPedal()
     _canvas.setTextColor(connected ? COLOR_TEXT : COLOR_DIM);
     _canvas.drawString("PEDAL", cx, top + 11);
 
-    if (connected)
-    {
-        constexpr int BAR_W = 32;
-        constexpr int BAR_H = 9;
-        int barX = cx - BAR_W / 2;
-        int barY = top + 22;
-        _canvas.drawRoundRect(barX, barY, BAR_W, BAR_H, 2, COLOR_DIM);
-        int fillW = (BAR_W - 4) * min(_pedalPressure, 100) / 100;
-        _canvas.fillRect(barX + 2, barY + 2, fillW, BAR_H - 4, COLOR_GREEN);
-        return;
-    }
     const char* label = "OFF";
     uint16_t color = COLOR_DIM;
-    if (_pedalState == PedalState::SEARCHING)
+    if (connected)
+    {
+        label = "ON";
+        color = COLOR_TEXT;
+    }
+    else if (_pedalState == PedalState::SEARCHING)
     {
         label = "SEARCH";
         color = COLOR_CYAN;

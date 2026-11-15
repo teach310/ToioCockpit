@@ -361,7 +361,7 @@ void setup(void)
   }
   dashboard.setSpeedGear(toDashboardGear(speedGear));
   pedalMode = preferences.getBool("pedal", false);
-  dashboard.setPedal(pedalState(), 0);
+  dashboard.setPedal(pedalState());
   updateCoreBattery();
 
   // JoyStickがなくてもボタンで走れるので、知らせるだけで先に進む
@@ -440,7 +440,7 @@ void togglePedalMode() {
   } else {
     pedal.stop();
   }
-  dashboard.setPedal(pedalState(), 0);
+  dashboard.setPedal(pedalState());
 }
 
 void toggleSteeringMode() {
@@ -496,7 +496,7 @@ void enterError(const char* detail, AppState nextState) {
   shovel.stop();
   pedal.stop();
   dashboard.setShovel(Dashboard::ShovelState::OFF, -1);
-  dashboard.setPedal(pedalState(), 0);
+  dashboard.setPedal(pedalState());
   dashboard.setRunning(false);
   dashboard.setGear(Dashboard::Gear::P);
   dashboard.setSpeed(0);
@@ -536,7 +536,7 @@ void enterSleep(AppState nextState) {
   shovel.stop();
   pedal.stop();
   dashboard.setShovel(Dashboard::ShovelState::OFF, -1);
-  dashboard.setPedal(pedalState(), 0);
+  dashboard.setPedal(pedalState());
   updateJoystickLed(false);
   dashboard.setRunning(false);
   dashboard.setGear(Dashboard::Gear::P);
@@ -734,7 +734,7 @@ void loop(void)
       bool toioStopped = !spinning && !slowSpinning && currentThrottle == 0;
       shovel.update(toioStopped);
       pedal.update(toioStopped);
-      dashboard.setPedal(pedalState(), pedalPressure);
+      dashboard.setPedal(pedalState());
       bool shovelConnected = shovel.isConnected();
       if (shovelConnected && !shovelWasConnected && shovel.arm() >= 0) {
         armPosition = shovel.arm(); // つないだ瞬間にアームが動かないよう、今の位置から始める
