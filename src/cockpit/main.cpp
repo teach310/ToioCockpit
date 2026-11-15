@@ -605,6 +605,11 @@ void updateInputs() {
 
 void loop(void)
 {
+  // 開発用: Serial に 'S' を送ると、今の画面を PNG で返す（tools/screenshot.py で保存する）
+  if (Serial.available() && Serial.read() == 'S') {
+    dashboard.writeScreenshot(Serial);
+  }
+
   M5.update();
   // toio.loop() は最初のスキャンで見つけたオブジェクトしか回さない。スキャンし直すと
   // toiocore は別のオブジェクトになり、電池残量の通知が届かなくなるので直接回す

@@ -320,6 +320,22 @@ bool Dashboard::isHornHit(int x, int y) const
     return dx * dx + dy * dy <= HORN_R * HORN_R;
 }
 
+void Dashboard::writeScreenshot(Stream& out)
+{
+    xSemaphoreTake(_lock, portMAX_DELAY);
+    size_t length = 0;
+    void* png = _canvas.createPng(&length);
+    xSemaphoreGive(_lock);
+    if (!png)
+    {
+        out.println("PNG 0");
+        return;
+    }
+    out.printf("PNG %u\n", static_cast<unsigned>(length));
+    out.write(static_cast<const uint8_t*>(png), length);
+    free(png);
+}
+
 void Dashboard::draw(bool force)
 {
     xSemaphoreTake(_lock, portMAX_DELAY);

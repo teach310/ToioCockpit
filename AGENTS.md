@@ -35,6 +35,8 @@ pio run -e pedal -t upload        # pedal に書き込み
 pio device monitor -e pedal       # pedal の Serial を見る
 ```
 
+- cockpit の今の画面は `~/.platformio/penv/bin/python tools/screenshot.py <ポート> cockpit.png` で PNG に保存できる（Serial に `S` を送ると cockpit が PNG を返す。送っている数秒は制御が止まる）
+
 - 書き込みはユーザーの指示があってから行う。機体を USB から外していることがある
 - 機体を複数つなぐようになったら、env ごとに `upload_port` を書いて書き込み先を取り違えないようにする
 

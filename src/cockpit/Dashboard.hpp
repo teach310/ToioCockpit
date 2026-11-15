@@ -61,6 +61,8 @@ public:
     /// 画面を消す・戻す。描き直し用のタスクが描いている途中に画面を消さないよう、draw() と同じ鍵を使う
     void sleep();
     void wake();
+    /// 開発用。今の画面を PNG にして out に書く。先頭に「PNG <バイト数>\n」を付ける
+    void writeScreenshot(Stream& out);
 
 private:
     void drawStatusBar();
