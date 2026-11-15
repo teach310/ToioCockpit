@@ -517,17 +517,18 @@ void Dashboard::drawSpeedText()
 // 右上のボタンに、ペダルで走るかどうかとつながりを出す。つながっていれば踏んだ強さを横長のバーで出す
 void Dashboard::drawPedal()
 {
-    bool on = _pedalState != PedalState::OFF;
+    // ショベルと同じく、つながっているときだけ名前を明るくする
+    bool connected = _pedalState == PedalState::CONNECTED;
     int dy = drawButton(PEDAL_BTN_X, PEDAL_BTN_Y, PEDAL_BTN_W, PEDAL_BTN_H, _touched == TouchedButton::PEDAL, COLOR_CYAN);
     int cx = PEDAL_BTN_X + PEDAL_BTN_W / 2;
     int top = PEDAL_BTN_Y + dy;
 
     _canvas.setFont(&fonts::Font0);
     _canvas.setTextDatum(middle_center);
-    _canvas.setTextColor(on ? COLOR_TEXT : COLOR_DIM);
+    _canvas.setTextColor(connected ? COLOR_TEXT : COLOR_DIM);
     _canvas.drawString("PEDAL", cx, top + 11);
 
-    if (_pedalState == PedalState::CONNECTED)
+    if (connected)
     {
         constexpr int BAR_W = 32;
         constexpr int BAR_H = 9;
