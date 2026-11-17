@@ -1,6 +1,8 @@
 #include <M5Unified.h>
+#include <NimBLEDevice.h>
+#include <PedalProtocol.hpp>
 
-// 圧力センサーのテスト。BLE は使わず、読んだ値を Serial と画面に出す
+// 圧力センサーで踏んだ強さを測り、BLE で cockpit に送る。値は Serial と画面にも出す
 // 感圧センサーと 10kΩ を CoreS3 の Port B（黒い Grove）につなぐ
 // Port A は I2C 用で、基板の中で 3.3V に引き上げられているのでセンサーには使わない
 //   黄 (G9): センサーの電源。HIGH にして約3.3Vを出す。センサーに流れるのは 0.3mA 以下なので GPIO で足りる
@@ -9,10 +11,11 @@
 // 注意: G8 に入れてよいのは3V前後まで。Port B の赤い線 (5V) は使わず、先を絶縁すること
 constexpr uint8_t SENSOR_POWER_PIN = 9;
 constexpr uint8_t SENSOR_PIN = 8;
-constexpr uint32_t UPDATE_INTERVAL_MS = 50;
-constexpr int SAMPLES = 8; // 1回の表示ごとに平均をとる回数。値のちらつきを抑える
+constexpr uint32_t SENSOR_INTERVAL_MS = 20; // センサーを読んで送る周期。cockpit の制御（33ms）より短くする
+constexpr uint32_t DRAW_INTERVAL_MS = 66;   // 画面と Serial に出す周期
+constexpr int SAMPLES = 8; // 1回読むごとに平均をとる回数。値のちらつきを抑える
 
-// 画面のメーター。今後アクセルの 0〜100 にするときの目安を兼ねる
+// 電圧から踏んだ強さ (0〜100) にする
 constexpr int IDLE_MAX_MV = 300; // これ未満は押していない扱い
 constexpr int FULL_MV = 2900;    // これ以上は頭打ち
 constexpr uint8_t DISPLAY_BRIGHTNESS = 80;
@@ -21,7 +24,56 @@ M5Canvas canvas(&M5.Display);
 
 int minMv = INT32_MAX;
 int maxMv = 0;
-uint32_t lastUpdateMs = 0;
+uint32_t lastSensorMs = 0;
+uint32_t lastDrawMs = 0;
+
+NimBLECharacteristic* pressureCharacteristic = nullptr;
+bool connected = false;
+int lastSentPressure = -1;
+uint32_t lastSentMs = 0;
+
+class ServerCallbacks : public NimBLEServerCallbacks
+{
+    void onConnect(NimBLEServer* server) override { connected = true; }
+    // 切断されるとアドバタイズが自動で再開するので、次の接続を待つ
+    void onDisconnect(NimBLEServer* server) override { connected = false; }
+};
+
+void setupBle()
+{
+    NimBLEDevice::init(PedalProtocol::DEVICE_NAME);
+    NimBLEServer* server = NimBLEDevice::createServer();
+    server->setCallbacks(new ServerCallbacks());
+
+    NimBLEService* service = server->createService(PedalProtocol::SERVICE_UUID);
+    pressureCharacteristic = service->createCharacteristic(
+        PedalProtocol::PRESSURE_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+    pressureCharacteristic->setValue(static_cast<uint8_t>(0));
+    service->start();
+
+    NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();
+    advertising->addServiceUUID(PedalProtocol::SERVICE_UUID);
+    advertising->setScanResponse(true); // 名前をスキャン応答に載せる
+    advertising->start();
+}
+
+// 踏んだ強さが変わったとき、変わらなくても KEEPALIVE_MS たったときに送る
+// cockpit は STALE_MS 届かなければ 0 とみなすので、踏みっぱなしでも送り続ける
+void sendPressure(int percent)
+{
+    uint32_t now = millis();
+    if (percent == lastSentPressure && now - lastSentMs < PedalProtocol::KEEPALIVE_MS)
+    {
+        return;
+    }
+    pressureCharacteristic->setValue(static_cast<uint8_t>(percent));
+    if (connected)
+    {
+        pressureCharacteristic->notify();
+    }
+    lastSentPressure = percent;
+    lastSentMs = now;
+}
 
 int readSensorMv(int* raw)
 {
@@ -62,7 +114,11 @@ void drawScreen(int raw, int mv)
     canvas.setTextColor(TFT_LIGHTGREY);
     canvas.setFont(&fonts::Font2);
     canvas.setTextDatum(top_left);
-    canvas.drawString("PEDAL SENSOR TEST", 12, 10);
+    canvas.drawString("PEDAL", 12, 10);
+    canvas.setTextDatum(top_right);
+    canvas.setTextColor(connected ? TFT_GREEN : TFT_DARKGREY);
+    canvas.drawString(connected ? "CONNECTED" : "WAITING FOR COCKPIT", w - 12, 10);
+    canvas.setTextDatum(top_left);
 
     // 押した強さ（%）を大きく出す
     canvas.setTextColor(color);
@@ -117,7 +173,9 @@ void setup()
     pinMode(SENSOR_PIN, INPUT);
     analogSetPinAttenuation(SENSOR_PIN, ADC_11db); // 約3.1Vまで読めるようにする
 
-    Serial.println("# pedal sensor test");
+    setupBle();
+
+    Serial.println("# pedal");
     Serial.println("# raw,mV,min_mV,max_mV  (press BtnA to reset min/max)");
 }
 
@@ -130,16 +188,23 @@ void loop()
     }
 
     uint32_t now = millis();
-    if (now - lastUpdateMs < UPDATE_INTERVAL_MS)
+    if (now - lastSensorMs < SENSOR_INTERVAL_MS)
     {
         return;
     }
-    lastUpdateMs = now;
+    lastSensorMs = now;
 
     int raw;
     int mv = readSensorMv(&raw);
     minMv = min(minMv, mv);
     maxMv = max(maxMv, mv);
-    Serial.printf("%d,%d,%d,%d\n", raw, mv, minMv, maxMv);
-    drawScreen(raw, mv);
+    sendPressure(pressurePercent(mv));
+
+    // 画面の描き直しは時間がかかるので、送るのより少ない回数にする
+    if (now - lastDrawMs >= DRAW_INTERVAL_MS)
+    {
+        lastDrawMs = now;
+        Serial.printf("%d,%d,%d,%d\n", raw, mv, minMv, maxMv);
+        drawScreen(raw, mv);
+    }
 }

@@ -5,10 +5,13 @@
 #include "Joystick.hpp"
 #include "Dashboard.hpp"
 #include "ShovelLink.hpp"
+#include "PedalLink.hpp"
+#include <PedalProtocol.hpp>
 #include <Preferences.h>
 
 Dashboard dashboard(M5.Display);
 ShovelLink shovel;
+PedalLink pedal;
 
 // Dual Button を Port B につなぐ。機種は platformio.ini の env の define で選ぶ
 #if defined(COCKPIT_CORE2)
@@ -133,6 +136,24 @@ constexpr int ARM_STICK_DIRECTION = 1;  // 上に倒して下がるときは -1 
 float armPosition = 0;                  // 0 = 一番下, 100 = 一番上
 bool shovelWasConnected = false;
 bool shovelAreaWasTouched = false; // 左下のショベル表示を、前回の制御周期で押していたか
+
+// ペダル。メーター右上の PEDAL ボタンをタッチして、ペダルで走るかどうかを切り替え、本体に保存する
+// ペダルで走るときは、踏んだ強さで速さを決め、青・赤ボタンで向きを選ぶ（青 = 前進、赤 = 後退）
+// ペダルで走る設定でも、ペダルにつながっていない間はボタンで走る
+enum class PedalDirection { FORWARD, BACKWARD };
+bool pedalMode = false;
+PedalDirection pedalDirection = PedalDirection::FORWARD;
+bool pedalAreaWasTouched = false; // 右上のペダルのボタンを、前回の制御周期で押していたか
+
+Dashboard::PedalState pedalState() {
+  if (!pedalMode) {
+    return Dashboard::PedalState::OFF;
+  }
+  if (pedal.isConnected()) {
+    return Dashboard::PedalState::CONNECTED;
+  }
+  return pedal.isSearching() ? Dashboard::PedalState::SEARCHING : Dashboard::PedalState::NOT_FOUND;
+}
 bool steeringAreaWasTouched = false; // 右下の STEER 表示を、前回の制御周期で押していたか
 bool gearAreaWasTouched = false;     // 左のギアの列を、前回の制御周期で押していたか
 
@@ -339,6 +360,8 @@ void setup(void)
     speedGear = SpeedGear::LO;
   }
   dashboard.setSpeedGear(toDashboardGear(speedGear));
+  pedalMode = preferences.getBool("pedal", false);
+  dashboard.setPedal(pedalState());
   updateCoreBattery();
 
   // JoyStickがなくてもボタンで走れるので、知らせるだけで先に進む
@@ -406,6 +429,20 @@ int8_t backwardThrottle() {
   }
 }
 
+// ペダルで走るかどうかを切り替える。走る設定にしたら探し、走らない設定にしたら切断する
+// 見つからなかったときは、2回タッチ（走らない → 走る）すると探し直す
+void togglePedalMode() {
+  pedalMode = !pedalMode;
+  preferences.putBool("pedal", pedalMode);
+  if (pedalMode) {
+    pedalDirection = PedalDirection::FORWARD;
+    pedal.startSearch();
+  } else {
+    pedal.stop();
+  }
+  dashboard.setPedal(pedalState());
+}
+
 void toggleSteeringMode() {
   steeringMode = steeringMode == SteeringMode::TILT ? SteeringMode::STICK : SteeringMode::TILT;
   preferences.putUChar("steer", static_cast<uint8_t>(steeringMode));
@@ -455,9 +492,11 @@ void enterError(const char* detail, AppState nextState) {
   retryState = nextState;
   errorStartMs = millis();
   updateJoystickLed(false);
-  // toioのスキャンとぶつからないよう、ショベルを探すのもやめる
+  // toioのスキャンとぶつからないよう、ショベルとペダルを探すのもやめる
   shovel.stop();
+  pedal.stop();
   dashboard.setShovel(Dashboard::ShovelState::OFF, -1);
+  dashboard.setPedal(pedalState());
   dashboard.setRunning(false);
   dashboard.setGear(Dashboard::Gear::P);
   dashboard.setSpeed(0);
@@ -495,7 +534,9 @@ void enterSleep(AppState nextState) {
     toiocore->disconnect();
   }
   shovel.stop();
+  pedal.stop();
   dashboard.setShovel(Dashboard::ShovelState::OFF, -1);
+  dashboard.setPedal(pedalState());
   updateJoystickLed(false);
   dashboard.setRunning(false);
   dashboard.setGear(Dashboard::Gear::P);
@@ -542,6 +583,10 @@ void startRunning() {
   showStatus("RUNNING", "", Dashboard::Tone::OK);
   markActivity();
   shovel.startSearch();
+  if (pedalMode) {
+    pedalDirection = PedalDirection::FORWARD;
+    pedal.startSearch();
+  }
   state = AppState::RUNNING;
 }
 
@@ -560,6 +605,11 @@ void updateInputs() {
 
 void loop(void)
 {
+  // 開発用: Serial に 'S' を送ると、今の画面を PNG で返す（tools/screenshot.py で保存する）
+  if (Serial.available() && Serial.read() == 'S') {
+    dashboard.writeScreenshot(Serial);
+  }
+
   M5.update();
   // toio.loop() は最初のスキャンで見つけたオブジェクトしか回さない。スキャンし直すと
   // toiocore は別のオブジェクトになり、電池残量の通知が届かなくなるので直接回す
@@ -622,17 +672,32 @@ void loop(void)
       int stickX = xDominant ? rawX : 0;
       int stickY = xDominant ? 0 : rawY;
 
-      // 優先順: 押し込み（速く回る）→ 青・赤ボタン（走る）→ 左右に倒す（ゆっくり回る）→ 止まる
+      // ペダルで走るときは、青・赤ボタンで向きを選ぶ。走っている最中に反対向きを選ぶと、いったん 0 まで減速してから加速する
+      bool pedalDriving = pedalMode && pedal.isConnected();
+      uint8_t pedalPressure = pedalDriving ? pedal.pressure() : 0;
+      if (pedalDriving) {
+        if (buttonBlue.wasPressed()) {
+          pedalDirection = PedalDirection::FORWARD;
+        } else if (buttonRed.wasPressed()) {
+          pedalDirection = PedalDirection::BACKWARD;
+        }
+      }
+
+      // 優先順: 押し込み（速く回る）→ ペダルか青・赤ボタン（走る）→ 左右に倒す（ゆっくり回る）→ 止まる
       // ショベルにつながっている間は、速く回るとアームが振られて危ないので押し込みでは回らない
       bool spinning = joystick.isPressed() && !shovel.isConnected();
-      bool driving = !spinning && (buttonBlue.isPressed() || buttonRed.isPressed());
+      bool driving = !spinning && (pedalDriving ? pedalPressure > 0 : (buttonBlue.isPressed() || buttonRed.isPressed()));
       bool slowSpinning = !spinning && !driving && stickX != 0;
       updateJoystickLed(spinning);
       if (spinning) {
         spinInPlace(true, SPIN_SPEED);
-      } else if (buttonBlue.isPressed()) {
+      } else if (driving && pedalDriving) {
+        // 踏んだ強さに合わせて、今の速さのギアの一番速い速さまで出す
+        int8_t fullThrottle = pedalDirection == PedalDirection::FORWARD ? forwardThrottle() : backwardThrottle();
+        driveToward(static_cast<int8_t>(fullThrottle * pedalPressure / PedalProtocol::PRESSURE_MAX), stickX);
+      } else if (driving && buttonBlue.isPressed()) {
         driveToward(forwardThrottle(), stickX);
-      } else if (buttonRed.isPressed()) {
+      } else if (driving && buttonRed.isPressed()) {
         driveToward(backwardThrottle(), stickX);
       } else if (slowSpinning) {
         spinInPlace(stickX * SLOW_SPIN_DIRECTION > 0, SLOW_SPIN_SPEED);
@@ -651,6 +716,11 @@ void loop(void)
         shovel.startSearch();
       }
       shovelAreaWasTouched = shovelAreaTouched;
+      bool pedalAreaTouched = touch.isPressed() && dashboard.isPedalHit(touch.x, touch.y);
+      if (pedalAreaTouched && !pedalAreaWasTouched) {
+        togglePedalMode();
+      }
+      pedalAreaWasTouched = pedalAreaTouched;
       bool steeringAreaTouched = touch.isPressed() && dashboard.isSteeringHit(touch.x, touch.y);
       if (steeringAreaTouched && !steeringAreaWasTouched) {
         toggleSteeringMode();
@@ -663,6 +733,8 @@ void loop(void)
       gearAreaWasTouched = gearAreaTouched;
       bool toioStopped = !spinning && !slowSpinning && currentThrottle == 0;
       shovel.update(toioStopped);
+      pedal.update(toioStopped);
+      dashboard.setPedal(pedalState());
       bool shovelConnected = shovel.isConnected();
       if (shovelConnected && !shovelWasConnected && shovel.arm() >= 0) {
         armPosition = shovel.arm(); // つないだ瞬間にアームが動かないよう、今の位置から始める
@@ -687,6 +759,9 @@ void loop(void)
         dashboard.setGear(Dashboard::Gear::D);
       } else if (currentThrottle < 0) {
         dashboard.setGear(Dashboard::Gear::R);
+      } else if (pedalDriving) {
+        // ペダルで走るときは、止まっていても選んでいる向きを出す
+        dashboard.setGear(pedalDirection == PedalDirection::FORWARD ? Dashboard::Gear::D : Dashboard::Gear::R);
       } else {
         dashboard.setGear(Dashboard::Gear::N);
       }
@@ -701,7 +776,7 @@ void loop(void)
       }
 
       // 動いている間や、ボタン・画面に触れている間は操作中とみなす
-      bool active = spinning || buttonBlue.isPressed() || buttonRed.isPressed() ||
+      bool active = spinning || buttonBlue.isPressed() || buttonRed.isPressed() || pedalPressure > 0 ||
                     M5.Touch.getDetail().isPressed() || currentThrottle != 0 || stickX != 0 || stickY != 0;
       if (active) {
         markActivity();

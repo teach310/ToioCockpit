@@ -12,6 +12,9 @@ class Dashboard
 public:
     enum class Gear { P, R, N, D, S };
     enum class ShovelState { OFF, SEARCHING, CONNECTED };
+    // ペダルで走るかどうかと、ペダルとのつながり
+    //   OFF: ペダルで走らない / SEARCHING: 探している / NOT_FOUND: 見つからなかった / CONNECTED: つながっている
+    enum class PedalState { OFF, SEARCHING, NOT_FOUND, CONNECTED };
     // ステータス表示の色
     enum class Tone { INFO, OK, WARN, ERROR };
     // 速さのギア。遅い順。LOW / HIGH は Arduino のマクロとぶつかるので使わない
@@ -33,6 +36,7 @@ public:
     void setHornPressed(bool pressed);
     /// @param arm アームの位置 (0～100)。CONNECTED 以外では使わない
     void setShovel(ShovelState state, int arm);
+    void setPedal(PedalState state);
     /// @param stick true なら JoyStick で曲がる (STICK)、false なら本体の傾きで曲がる (TILT)
     void setStickSteering(bool stick);
     void setSpeedGear(SpeedGear gear);
@@ -46,6 +50,8 @@ public:
     bool isSteeringHit(int x, int y) const;
     /// 左上の速さのギアのボタンに触れたか。タッチで切り替えるのに使う
     bool isGearHit(int x, int y) const;
+    /// 右上のペダルのボタンに触れたか。タッチでペダルで走るかどうかを切り替えるのに使う
+    bool isPedalHit(int x, int y) const;
 
     /// @param force true のときは描き直しの間隔を待たずにすぐ描く
     void draw(bool force = false);
@@ -54,6 +60,8 @@ public:
     /// 画面を消す・戻す。描き直し用のタスクが描いている途中に画面を消さないよう、draw() と同じ鍵を使う
     void sleep();
     void wake();
+    /// 開発用。今の画面を PNG にして out に書く。先頭に「PNG <バイト数>\n」を付ける
+    void writeScreenshot(Stream& out);
 
 private:
     void drawStatusBar();
@@ -66,13 +74,14 @@ private:
     void drawShovel();
     void drawSteering();
     void drawSpeedGear();
+    void drawPedal();
     /// ボタンの土台を描く。押されていなければ影を付けて浮かせ、押されていれば沈めて accent の色にする
     /// @return 中身を描くときに y に足す量（押されているときは沈んだ分だけ下にずらす）
     int drawButton(int x, int y, int w, int h, bool pressed, uint16_t accent);
 
     void drawLocked(bool force);
     static void drawTask(void* arg);
-    enum class TouchedButton { NONE, GEAR, SHOVEL, STEER };
+    enum class TouchedButton { NONE, GEAR, SHOVEL, STEER, PEDAL };
 
     M5GFX& _display;
     LGFX_Sprite _canvas;
@@ -93,6 +102,7 @@ private:
     SpeedGear _speedGear = SpeedGear::LO;
     TouchedButton _touched = TouchedButton::NONE;
     int _shovelArm = -1;
+    PedalState _pedalState = PedalState::OFF;
 
     bool _dirty = true;
     uint32_t _lastDrawMs = 0;

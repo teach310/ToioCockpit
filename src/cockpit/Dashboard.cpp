@@ -44,6 +44,14 @@ namespace
     constexpr int GEAR_BTN_Y = 32;
     constexpr int GEAR_BTN_W = 44;
     constexpr int GEAR_BTN_H = 40;
+    // 右上: ペダル。速さのギアのボタンと左右対称に置く
+    constexpr int PEDAL_BTN_W = 44;
+    constexpr int PEDAL_BTN_H = 40;
+    constexpr int PEDAL_BTN_X = 320 - 4 - PEDAL_BTN_W;
+    constexpr int PEDAL_BTN_Y = 32;
+    // 右: 電池。ペダルのボタンの下に置く
+    constexpr int BATTERY_TOP = 86;
+    constexpr int BATTERY_H = 84;
     // 左下: ショベル、右下: ハンドルの切り方。真ん中の速さの数字とは重ねない
     constexpr int BOTTOM_BTN_Y = 202;
     constexpr int BOTTOM_BTN_W = 100;
@@ -215,6 +223,15 @@ void Dashboard::setShovel(ShovelState state, int arm)
     }
 }
 
+void Dashboard::setPedal(PedalState state)
+{
+    if (state != _pedalState)
+    {
+        _pedalState = state;
+        _dirty = true;
+    }
+}
+
 void Dashboard::setStickSteering(bool stick)
 {
     if (stick != _stickSteering)
@@ -250,6 +267,10 @@ void Dashboard::setTouch(bool pressed, int x, int y)
         {
             touched = TouchedButton::STEER;
         }
+        else if (isPedalHit(x, y))
+        {
+            touched = TouchedButton::PEDAL;
+        }
     }
     if (touched != _touched)
     {
@@ -272,6 +293,11 @@ bool Dashboard::isGearHit(int x, int y) const
     return hitButton(x, y, GEAR_BTN_X, GEAR_BTN_Y, GEAR_BTN_W, GEAR_BTN_H);
 }
 
+bool Dashboard::isPedalHit(int x, int y) const
+{
+    return hitButton(x, y, PEDAL_BTN_X, PEDAL_BTN_Y, PEDAL_BTN_W, PEDAL_BTN_H);
+}
+
 bool Dashboard::isSteeringHit(int x, int y) const
 {
     return hitButton(x, y, STEER_BTN_X, BOTTOM_BTN_Y, BOTTOM_BTN_W, BOTTOM_BTN_H);
@@ -287,6 +313,22 @@ bool Dashboard::isHornHit(int x, int y) const
     int dx = x - GAUGE_X;
     int dy = y - GAUGE_Y;
     return dx * dx + dy * dy <= HORN_R * HORN_R;
+}
+
+void Dashboard::writeScreenshot(Stream& out)
+{
+    xSemaphoreTake(_lock, portMAX_DELAY);
+    size_t length = 0;
+    void* png = _canvas.createPng(&length);
+    xSemaphoreGive(_lock);
+    if (!png)
+    {
+        out.println("PNG 0");
+        return;
+    }
+    out.printf("PNG %u\n", static_cast<unsigned>(length));
+    out.write(static_cast<const uint8_t*>(png), length);
+    free(png);
 }
 
 void Dashboard::draw(bool force)
@@ -328,6 +370,7 @@ void Dashboard::drawLocked(bool force)
     drawSpeedText();
     drawGears();
     drawSpeedGear();
+    drawPedal();
     drawBatteries();
     drawShovel();
     drawSteering();
@@ -466,6 +509,41 @@ void Dashboard::drawSpeedText()
     _canvas.drawString("km/h", GAUGE_X, 231);
 }
 
+// 右上のボタンに、ペダルで走るかどうかとつながりを出す。踏んだ強さは真ん中の速さのメーターでわかるので出さない
+void Dashboard::drawPedal()
+{
+    // ショベルと同じく、つながっているときだけ名前を明るくする
+    bool connected = _pedalState == PedalState::CONNECTED;
+    int dy = drawButton(PEDAL_BTN_X, PEDAL_BTN_Y, PEDAL_BTN_W, PEDAL_BTN_H, _touched == TouchedButton::PEDAL, COLOR_CYAN);
+    int cx = PEDAL_BTN_X + PEDAL_BTN_W / 2;
+    int top = PEDAL_BTN_Y + dy;
+
+    _canvas.setFont(&fonts::Font0);
+    _canvas.setTextDatum(middle_center);
+    _canvas.setTextColor(connected ? COLOR_TEXT : COLOR_DIM);
+    _canvas.drawString("PEDAL", cx, top + 11);
+
+    const char* label = "OFF";
+    uint16_t color = COLOR_DIM;
+    if (connected)
+    {
+        label = "ON";
+        color = COLOR_TEXT;
+    }
+    else if (_pedalState == PedalState::SEARCHING)
+    {
+        label = "SEARCH";
+        color = COLOR_CYAN;
+    }
+    else if (_pedalState == PedalState::NOT_FOUND)
+    {
+        label = "NONE";
+        color = COLOR_YELLOW;
+    }
+    _canvas.setTextColor(color);
+    _canvas.drawString(label, cx, top + 27);
+}
+
 void Dashboard::drawGears()
 {
     static const struct
@@ -560,8 +638,8 @@ void Dashboard::drawBatteries()
 void Dashboard::drawBattery(int x, const char* label, int percent, bool charging)
 {
     constexpr int W = 18;
-    constexpr int TOP = 52;
-    constexpr int H = 120;
+    constexpr int TOP = BATTERY_TOP;
+    constexpr int H = BATTERY_H;
     int cx = x + W / 2;
 
     _canvas.fillRect(cx - 4, TOP - 4, 8, 4, COLOR_DIM);
